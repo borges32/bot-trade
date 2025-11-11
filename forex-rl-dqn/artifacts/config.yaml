@@ -1,0 +1,34 @@
+agent:
+  batch_size: 64
+  dueling: true
+  epsilon_decay_steps: 50000
+  epsilon_end: 0.05
+  epsilon_start: 1.0
+  gamma: 0.99
+  grad_clip_norm: 10.0
+  lr: 0.0001
+  lstm_hidden: 128
+  mlp_hidden: 256
+  replay_size: 100000
+  start_training_after: 1000
+  target_update_interval: 500
+env:
+  features:
+  - rsi_14
+  - ema_12
+  - ema_26
+  - bb_upper_20
+  - bb_lower_20
+  - returns_1
+  - returns_5
+  fee_perc: 0.0001
+  scale_features: true
+  spread_perc: 0.0002
+  window_size: 64
+seed: 42
+train:
+  checkpoint_interval: 10000
+  device: auto
+  eval_interval: 5000
+  max_steps: 200000
+  train_split: 0.8

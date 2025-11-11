@@ -1,0 +1,38 @@
+# Forex RL DQN Configuration
+seed: 42
+
+env:
+  window_size: 64
+  fee_perc: 0.0001  # 0.01% fee per trade
+  spread_perc: 0.0002  # 0.02% spread
+  scale_features: true
+  features:
+    - rsi_14
+    - ema_12
+    - ema_26
+    - bb_upper_20
+    - bb_lower_20
+    - returns_1
+    - returns_5
+
+agent:
+  gamma: 0.99
+  lr: 0.0001
+  batch_size: 64
+  replay_size: 100000
+  start_training_after: 1000
+  target_update_interval: 500
+  epsilon_start: 1.0
+  epsilon_end: 0.05
+  epsilon_decay_steps: 50000
+  grad_clip_norm: 10.0
+  dueling: true
+  lstm_hidden: 128
+  mlp_hidden: 256
+
+train:
+  max_steps: 200000
+  eval_interval: 5000
+  checkpoint_interval: 10000
+  device: auto  # auto, cpu, cuda
+  train_split: 0.8
