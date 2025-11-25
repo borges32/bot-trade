@@ -1,5 +1,7 @@
 """FastAPI inference service for Forex RL DQN agent."""
+import csv
 import json
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -60,6 +62,13 @@ class ActResponse(BaseModel):
     action: str = Field(..., description="Predicted action: buy, sell, or hold")
     action_id: int = Field(..., description="Action ID: 0=hold, 1=buy, 2=sell")
     confidence: float = Field(..., ge=0, le=1, description="Confidence score (0-1)")
+
+
+class IngestResponse(BaseModel):
+    """Response for data ingestion."""
+    status: str = Field(..., description="Status of ingestion")
+    records_saved: int = Field(..., description="Number of records saved")
+    file_path: str = Field(..., description="Path to the CSV file")
 
 
 class HealthResponse(BaseModel):
@@ -141,6 +150,48 @@ def load_model_artifacts(
     model_state["loaded"] = True
     
     print(f"Model loaded from {model_path}")
+
+
+def save_to_csv(data: List[OHLCVBar], symbol: str, data_dir: str = "data") -> tuple[str, int]:
+    """Save OHLCV data to CSV file.
+    
+    Args:
+        data: List of OHLCV bars.
+        symbol: Trading symbol (used for filename).
+        data_dir: Directory to save CSV files.
+        
+    Returns:
+        Tuple of (file_path, records_saved).
+    """
+    # Create data directory if it doesn't exist
+    data_path = Path(data_dir)
+    data_path.mkdir(parents=True, exist_ok=True)
+    
+    # Determine file path
+    csv_filename = f"{symbol.lower()}_history.csv"
+    csv_path = data_path / csv_filename
+    
+    # Convert data to list of dicts
+    records = [bar.model_dump() for bar in data]
+    
+    # Check if file exists
+    file_exists = csv_path.exists()
+    
+    # Define CSV columns
+    fieldnames = ["timestamp", "open", "high", "low", "close", "volume"]
+    
+    # Write to CSV
+    with open(csv_path, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        
+        # Write header only if file is new
+        if not file_exists:
+            writer.writeheader()
+        
+        # Write data rows
+        writer.writerows(records)
+    
+    return str(csv_path), len(records)
 
 
 @app.on_event("startup")
@@ -239,6 +290,52 @@ async def predict_action(request: ActRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
+
+
+@app.post("/ingest", response_model=IngestResponse)
+async def ingest_historical_data(
+    data: List[OHLCVBar],
+    symbol: str = "EURUSD"
+):
+    """Ingest historical OHLCV data and persist to CSV.
+    
+    Args:
+        data: List of OHLCV bars (sent as JSON array in request body).
+        symbol: Trading symbol (query parameter, default: EURUSD).
+        
+    Returns:
+        Ingestion status with records saved and file path.
+        
+    Example:
+        POST /ingest?symbol=EURUSD
+        Body: [{"timestamp": "2024-01-01T00:00:00Z", "open": 1.1, ...}]
+    """
+    try:
+        # Validate data is not empty
+        if not data:
+            raise HTTPException(
+                status_code=400,
+                detail="Data list cannot be empty"
+            )
+        
+        # Save to CSV
+        file_path, records_saved = save_to_csv(
+            data=data,
+            symbol=symbol,
+            data_dir=os.getenv("DATA_DIR", "data")
+        )
+        
+        return IngestResponse(
+            status="success",
+            records_saved=records_saved,
+            file_path=file_path
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to ingest data: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

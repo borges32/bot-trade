@@ -10,9 +10,10 @@ services:
       - "8000:8000"
     volumes:
       - ./artifacts:/app/artifacts:ro
-      - ./data:/app/data:ro
+      - ./data:/app/data
     environment:
       - ARTIFACTS_DIR=/app/artifacts
+      - DATA_DIR=/app/data
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:

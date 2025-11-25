@@ -167,6 +167,50 @@ curl -X POST http://localhost:8000/act \
 - `buy` (1): Long position
 - `sell` (2): Short position
 
+### 7. Ingest Historical Data (New!)
+
+The API now includes an endpoint to receive and persist historical data from cTrader:
+
+```bash
+curl -X POST "http://localhost:8000/ingest?symbol=EURUSD" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "timestamp": "2024-01-01T00:00:00Z",
+      "open": 1.1000,
+      "high": 1.1010,
+      "low": 1.0990,
+      "close": 1.1005,
+      "volume": 1234.56
+    },
+    {
+      "timestamp": "2024-01-01T00:01:00Z",
+      "open": 1.1005,
+      "high": 1.1015,
+      "low": 1.0995,
+      "close": 1.1008,
+      "volume": 1567.89
+    }
+  ]'
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "records_saved": 2,
+  "file_path": "data/eurusd_history.csv"
+}
+```
+
+**Features:**
+- Receives an array of OHLCV bars directly in the request body
+- Symbol specified as query parameter (default: EURUSD)
+- Creates CSV file if it doesn't exist
+- Appends to existing file if it exists
+- Separate files for each symbol (`{symbol}_history.csv`)
+- Data persisted in the `data/` directory (accessible from host via Docker volume)
+
 ## 🐳 Docker Deployment
 
 ### Build and Run
@@ -285,11 +329,21 @@ forex-rl-dqn/
 ├── config.yaml              # Main configuration
 ├── requirements.txt         # Python dependencies
 ├── pyproject.toml          # Tool configurations
+├── example_usage.py         # Example: How to use the trained model
+├── example_ingest.py        # Example: How to ingest historical data
+├── ctrader_integration_example.py  # Example: cTrader integration
+├── INGEST_API.md           # Documentation: /ingest endpoint
 ├── Dockerfile
 ├── docker-compose.yml
 ├── LICENSE
 └── README.md
 ```
+
+## 📚 Additional Documentation
+
+- **[INGEST_API.md](INGEST_API.md)** - Complete documentation for the data ingestion endpoint
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment guide
+- **[STRUCTURE.md](STRUCTURE.md)** - Project structure details
 
 ## 🔧 Troubleshooting
 

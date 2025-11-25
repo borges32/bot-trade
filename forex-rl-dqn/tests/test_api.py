@@ -1,6 +1,8 @@
 """Tests for API endpoints."""
 import json
+import tempfile
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -192,3 +194,111 @@ def test_act_endpoint_confidence_range(client):
     
     # Confidence should be between 0 and 1
     assert 0.0 <= data["confidence"] <= 1.0
+
+
+def test_ingest_endpoint_valid_request(client):
+    """Test /ingest endpoint with valid data."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with patch("src.api.main.os.getenv", return_value=tmpdir):
+            bars = generate_sample_window(10)
+            
+            response = client.post("/ingest?symbol=EURUSD", json=bars)
+            
+            assert response.status_code == 200
+            data = response.json()
+            
+            # Check response structure
+            assert data["status"] == "success"
+            assert data["records_saved"] == 10
+            assert "eurusd_history.csv" in data["file_path"]
+            
+            # Verify file was created
+            csv_path = Path(tmpdir) / "eurusd_history.csv"
+            assert csv_path.exists()
+            
+            # Read and verify content
+            import csv
+            with open(csv_path, 'r') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                assert len(rows) == 10
+                assert rows[0]["timestamp"] == bars[0]["timestamp"]
+
+
+def test_ingest_endpoint_append_data(client):
+    """Test /ingest endpoint appends to existing file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with patch("src.api.main.os.getenv", return_value=tmpdir):
+            # First ingestion
+            bars1 = generate_sample_window(5)
+            response1 = client.post("/ingest?symbol=GBPUSD", json=bars1)
+            assert response1.status_code == 200
+            assert response1.json()["records_saved"] == 5
+            
+            # Second ingestion (append)
+            bars2 = generate_sample_window(3)
+            response2 = client.post("/ingest?symbol=GBPUSD", json=bars2)
+            assert response2.status_code == 200
+            assert response2.json()["records_saved"] == 3
+            
+            # Verify total records
+            csv_path = Path(tmpdir) / "gbpusd_history.csv"
+            import csv
+            with open(csv_path, 'r') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
+                assert len(rows) == 8  # 5 + 3
+
+
+def test_ingest_endpoint_empty_data(client):
+    """Test /ingest endpoint with empty data list."""
+    response = client.post("/ingest?symbol=EURUSD", json=[])
+    
+    assert response.status_code == 400
+    assert "cannot be empty" in response.json()["detail"]
+
+
+def test_ingest_endpoint_invalid_ohlc(client):
+    """Test /ingest endpoint with invalid OHLC data."""
+    bars = [{
+        "timestamp": "2024-01-01T00:00:00Z",
+        "open": 1.1000,
+        "high": 1.0990,  # High < Low - invalid!
+        "low": 1.1000,
+        "close": 1.0995,
+        "volume": 1000,
+    }]
+    
+    response = client.post("/ingest?symbol=EURUSD", json=bars)
+    
+    # Should fail validation
+    assert response.status_code == 422
+
+
+def test_ingest_endpoint_multiple_symbols(client):
+    """Test /ingest endpoint creates separate files for different symbols."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with patch("src.api.main.os.getenv", return_value=tmpdir):
+            # Ingest EURUSD
+            bars_eur = generate_sample_window(5)
+            response_eur = client.post("/ingest?symbol=EURUSD", json=bars_eur)
+            assert response_eur.status_code == 200
+            
+            # Ingest GBPUSD
+            bars_gbp = generate_sample_window(3)
+            response_gbp = client.post("/ingest?symbol=GBPUSD", json=bars_gbp)
+            assert response_gbp.status_code == 200
+            
+            # Verify separate files exist
+            eur_csv = Path(tmpdir) / "eurusd_history.csv"
+            gbp_csv = Path(tmpdir) / "gbpusd_history.csv"
+            
+            assert eur_csv.exists()
+            assert gbp_csv.exists()
+            
+            # Verify record counts
+            import csv
+            with open(eur_csv, 'r') as f:
+                assert len(list(csv.DictReader(f))) == 5
+            with open(gbp_csv, 'r') as f:
+                assert len(list(csv.DictReader(f))) == 3
