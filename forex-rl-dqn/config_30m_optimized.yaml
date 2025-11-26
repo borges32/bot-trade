@@ -1,0 +1,49 @@
+# Optimized Configuration for 30M - Balanced Approach
+# Based on empirical results: 7 features -> 42.86%, 14 features -> 40.66%
+# Strategy: Use best performing features only
+seed: 42
+
+env:
+  window_size: 32  # 32 * 30min = 16 horas (mais contexto)
+  episode_length: 50
+  fee_perc: 0.0001   # Custos mais realistas
+  spread_perc: 0.0002
+  scale_features: true
+  use_multistep: true
+  features:
+    # Core price action (4)
+    - rsi_14
+    - ema_12
+    - ema_26
+    - returns_1
+    # Volatility & Momentum (4)
+    - atr_14
+    - bb_upper_20
+    - bb_lower_20
+    - momentum_10
+    # Advanced indicators (2)
+    - macd_12_26
+    - volatility_20
+    # Total: 10 features (sweet spot entre 7 e 14)
+
+agent:
+  gamma: 0.98  # Maior discount para multi-step
+  lr: 0.0001   # Learning rate médio
+  batch_size: 64
+  replay_size: 100000
+  start_training_after: 5000  # Mais warmup
+  target_update_interval: 2000  # Updates menos frequentes
+  epsilon_start: 1.0
+  epsilon_end: 0.1  # Mais exploração final
+  epsilon_decay_steps: 100000  # Decay mais lento
+  grad_clip_norm: 1.0  # Clip mais agressivo
+  dueling: true
+  lstm_hidden: 192  # Meio termo entre 128 e 256
+  mlp_hidden: 384   # Meio termo entre 256 e 512
+
+train:
+  max_steps: 200000  # Mais steps para convergir
+  eval_interval: 5000
+  checkpoint_interval: 10000
+  device: auto
+  train_split: 0.8
