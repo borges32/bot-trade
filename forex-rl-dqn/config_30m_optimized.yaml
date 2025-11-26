@@ -22,7 +22,7 @@ env:
     - bb_lower_20
     - momentum_10
     # Advanced indicators (2)
-    - macd_12_26
+    - macd
     - volatility_20
     # Total: 10 features (sweet spot entre 7 e 14)
 

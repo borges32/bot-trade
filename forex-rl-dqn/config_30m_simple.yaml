@@ -18,7 +18,7 @@ env:
     - atr_14
     - bb_upper_20
     # Trend (1)
-    - macd_12_26
+    - macd
     # Total: 6 features essenciais
 
 agent:

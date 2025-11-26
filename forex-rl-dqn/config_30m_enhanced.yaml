@@ -20,9 +20,9 @@ env:
     - momentum_10
     - momentum_20
     - volatility_20
-    - volume_ma_20
-    - macd_12_26
-    - macd_signal_9
+    - volume_ratio
+    - macd
+    - macd_signal
 
 agent:
   gamma: 0.97
