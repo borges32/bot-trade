@@ -221,7 +221,7 @@ def create_windows(
     prices: np.ndarray,
     window_size: int,
     min_valid_ratio: float = 0.8
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Create sliding windows from features and prices.
     
     Args:
@@ -231,9 +231,10 @@ def create_windows(
         min_valid_ratio: Minimum ratio of non-NaN values required in a window.
         
     Returns:
-        Tuple of (windows, next_prices, valid_indices).
+        Tuple of (windows, next_prices, window_end_prices, valid_indices).
         - windows: Array of shape (n_windows, window_size, n_features).
         - next_prices: Array of shape (n_windows,) with price after each window.
+        - window_end_prices: Array of shape (n_windows,) with price at end of window.
         - valid_indices: Array of valid window indices.
     """
     n_samples = len(features)
@@ -244,6 +245,7 @@ def create_windows(
     
     windows = []
     next_prices_list = []
+    window_end_prices_list = []
     valid_indices = []
     
     for i in range(n_samples - window_size):
@@ -257,6 +259,7 @@ def create_windows(
             window = np.nan_to_num(window, nan=0.0)
             windows.append(window)
             next_prices_list.append(prices[i + window_size])
+            window_end_prices_list.append(prices[i + window_size - 1])
             valid_indices.append(i + window_size)
     
     if len(windows) == 0:
@@ -265,5 +268,6 @@ def create_windows(
     return (
         np.array(windows, dtype=np.float32),
         np.array(next_prices_list, dtype=np.float32),
+        np.array(window_end_prices_list, dtype=np.float32),
         np.array(valid_indices, dtype=np.int32)
     )

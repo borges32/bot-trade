@@ -25,6 +25,7 @@ class ForexTradingEnv(gym.Env):
         self,
         windows: np.ndarray,
         prices: np.ndarray,
+        window_end_prices: Optional[np.ndarray] = None,
         fee_perc: float = 0.0001,
         spread_perc: float = 0.0002,
     ):
@@ -33,6 +34,8 @@ class ForexTradingEnv(gym.Env):
         Args:
             windows: Array of shape (n_episodes, window_size, n_features).
             prices: Array of shape (n_episodes,) with next prices after each window.
+            window_end_prices: Array of shape (n_episodes,) with prices at end of each window.
+                             If None, will be set equal to prices (backward compatible).
             fee_perc: Trading fee as percentage (e.g., 0.0001 = 0.01%).
             spread_perc: Bid-ask spread as percentage.
         """
@@ -40,6 +43,7 @@ class ForexTradingEnv(gym.Env):
         
         self.windows = windows
         self.prices = prices
+        self.window_end_prices = window_end_prices if window_end_prices is not None else prices
         self.n_episodes = len(windows)
         self.window_size = windows.shape[1]
         self.n_features = windows.shape[2]
@@ -88,10 +92,8 @@ class ForexTradingEnv(gym.Env):
         observation = self.windows[self.current_step]
         self.next_price = self.prices[self.current_step]
         
-        # Initialize current price (approximation from window if needed)
-        # We assume the last close in the window is the current price
-        # Since features are normalized, we use next_price as reference
-        self.current_price = self.next_price
+        # Current price is the price at the END of the window (before next_price)
+        self.current_price = self.window_end_prices[self.current_step]
         
         info = {
             "step": self.current_step,
@@ -113,22 +115,26 @@ class ForexTradingEnv(gym.Env):
         action_to_position = {0: 0, 1: 1, 2: -1}
         new_position = action_to_position[action]
         
-        # Calculate return
-        price_return = (self.next_price - self.current_price) / self.current_price
-        
-        # Calculate reward based on position
-        position_reward = price_return * self.position
-        
         # Calculate cost if position changed
         position_change_cost = 0.0
         if new_position != self.position:
             position_change_cost = self.fee_perc + self.spread_perc
         
+        # Update position BEFORE calculating reward
+        old_position = self.position
+        self.position = new_position
+        
+        # Calculate return
+        price_return = (self.next_price - self.current_price) / self.current_price
+        
+        # Calculate reward based on NEW position
+        # The agent should get reward for the position it just took
+        position_reward = price_return * self.position
+        
         # Total reward
         reward = position_reward - position_change_cost
         
-        # Update position and price
-        self.position = new_position
+        # Update price
         self.current_price = self.next_price
         
         # Episode ends after one step (single-step episodes)
@@ -141,6 +147,7 @@ class ForexTradingEnv(gym.Env):
         info = {
             "step": self.current_step,
             "position": self.position,
+            "old_position": old_position,
             "price_return": price_return,
             "position_reward": position_reward,
             "cost": position_change_cost,

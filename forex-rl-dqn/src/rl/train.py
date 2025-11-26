@@ -101,16 +101,20 @@ def load_and_prepare_data(
     window_size = config["env"]["window_size"]
     print(f"Creating windows with size {window_size}...")
     
-    train_windows, train_next_prices, _ = create_windows(
+    train_windows, train_next_prices, train_window_end_prices, _ = create_windows(
         train_features, train_prices, window_size
     )
-    val_windows, val_next_prices, _ = create_windows(
+    val_windows, val_next_prices, val_window_end_prices, _ = create_windows(
         val_features, val_prices, window_size
     )
     
     print(f"Train windows: {len(train_windows)}, Val windows: {len(val_windows)}")
     
-    return train_windows, train_next_prices, val_windows, val_next_prices, scaler
+    return (
+        train_windows, train_next_prices, train_window_end_prices,
+        val_windows, val_next_prices, val_window_end_prices,
+        scaler
+    )
 
 
 def evaluate_agent(
@@ -178,14 +182,15 @@ def train(
     print(f"Using device: {device}")
     
     # Prepare data
-    train_windows, train_prices, val_windows, val_prices, scaler = load_and_prepare_data(
-        data_path, config
-    )
+    (train_windows, train_prices, train_window_end_prices,
+     val_windows, val_prices, val_window_end_prices,
+     scaler) = load_and_prepare_data(data_path, config)
     
     # Create environments
     train_env = ForexTradingEnv(
         train_windows,
         train_prices,
+        train_window_end_prices,
         fee_perc=config["env"]["fee_perc"],
         spread_perc=config["env"]["spread_perc"],
     )
@@ -193,6 +198,7 @@ def train(
     val_env = ForexTradingEnv(
         val_windows,
         val_prices,
+        val_window_end_prices,
         fee_perc=config["env"]["fee_perc"],
         spread_perc=config["env"]["spread_perc"],
     )
