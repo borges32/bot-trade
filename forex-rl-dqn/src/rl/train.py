@@ -11,6 +11,7 @@ from src.common.features import FeatureScaler, create_windows, generate_features
 from src.common.utils import get_device, set_seed
 from src.rl.agent import DQNAgent
 from src.rl.env import ForexTradingEnv
+from src.rl.env_multistep import ForexTradingEnvMultiStep
 from src.rl.replay_buffer import ReplayBuffer
 
 
@@ -186,18 +187,46 @@ def train(
      val_windows, val_prices, val_window_end_prices,
      scaler) = load_and_prepare_data(data_path, config)
     
-    # Create environments
-    train_env = ForexTradingEnv(
-        train_windows,
-        train_prices,
-        train_window_end_prices,
-        fee_perc=config["env"]["fee_perc"],
-        spread_perc=config["env"]["spread_perc"],
-    )
+    # Check if using multi-step environment
+    use_multistep = config["env"].get("use_multistep", False)
     
-    val_env = ForexTradingEnv(
-        val_windows,
-        val_prices,
+    # Create environments
+    if use_multistep:
+        print(f"Using Multi-Step Environment (episode_length={config['env'].get('episode_length', 100)})")
+        train_env = ForexTradingEnvMultiStep(
+            train_windows,
+            train_prices,
+            train_window_end_prices,
+            fee_perc=config["env"]["fee_perc"],
+            spread_perc=config["env"]["spread_perc"],
+            episode_length=config["env"].get("episode_length", 100),
+        )
+        
+        val_env = ForexTradingEnvMultiStep(
+            val_windows,
+            val_prices,
+            val_window_end_prices,
+            fee_perc=config["env"]["fee_perc"],
+            spread_perc=config["env"]["spread_perc"],
+            episode_length=config["env"].get("episode_length", 100),
+        )
+    else:
+        print("Using Single-Step Environment")
+        train_env = ForexTradingEnv(
+            train_windows,
+            train_prices,
+            train_window_end_prices,
+            fee_perc=config["env"]["fee_perc"],
+            spread_perc=config["env"]["spread_perc"],
+        )
+        
+        val_env = ForexTradingEnv(
+            val_windows,
+            val_prices,
+            val_window_end_prices,
+            fee_perc=config["env"]["fee_perc"],
+            spread_perc=config["env"]["spread_perc"],
+        )
         val_window_end_prices,
         fee_perc=config["env"]["fee_perc"],
         spread_perc=config["env"]["spread_perc"],
@@ -243,35 +272,49 @@ def train(
     step = 0
     episode = 0
     total_reward = 0.0
+    episode_rewards = []
     
     while step < max_steps:
         # Reset environment
         state, _ = train_env.reset()
         episode += 1
+        episode_reward = 0.0
+        done = False
         
-        # Select action
-        action, _ = agent.act(state)
-        
-        # Execute action
-        next_state, reward, terminated, _, info = train_env.step(action)
-        
-        # Store in replay buffer
-        replay_buffer.push(state, action, reward, next_state, float(terminated))
-        
-        total_reward += reward
-        step += 1
-        
-        # Train agent
-        if len(replay_buffer) >= start_training_after:
-            batch = replay_buffer.sample(batch_size)
-            loss = agent.train_step(*batch)
+        # Multi-step episode loop
+        while not done and step < max_steps:
+            # Select action
+            action, _ = agent.act(state)
             
-            if step % 1000 == 0:
-                print(
-                    f"Step {step}/{max_steps} | Episode {episode} | "
-                    f"Loss: {loss:.4f} | Epsilon: {agent.get_epsilon():.3f} | "
-                    f"Avg Reward: {total_reward/episode:.4f}"
-                )
+            # Execute action
+            next_state, reward, terminated, truncated, info = train_env.step(action)
+            done = terminated or truncated
+            
+            # Store in replay buffer
+            replay_buffer.push(state, action, reward, next_state, float(done))
+            
+            episode_reward += reward
+            total_reward += reward
+            step += 1
+            
+            # Train agent
+            if len(replay_buffer) >= start_training_after:
+                batch = replay_buffer.sample(batch_size)
+                loss = agent.train_step(*batch)
+                
+                if step % 1000 == 0:
+                    avg_episode_reward = np.mean(episode_rewards[-100:]) if episode_rewards else 0
+                    print(
+                        f"Step {step}/{max_steps} | Episode {episode} | "
+                        f"Loss: {loss:.4f} | Epsilon: {agent.get_epsilon():.3f} | "
+                        f"Avg Episode Reward: {avg_episode_reward:.6f}"
+                    )
+            
+            # Move to next state
+            state = next_state
+        
+        # Episode ended
+        episode_rewards.append(episode_reward)
         
         # Evaluation
         if step % eval_interval == 0 and step > 0:

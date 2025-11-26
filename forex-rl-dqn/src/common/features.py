@@ -72,6 +72,86 @@ def calculate_returns(close: pd.Series, period: int = 1) -> pd.Series:
     return close.pct_change(periods=period)
 
 
+def calculate_atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
+    """Calculate Average True Range.
+    
+    Args:
+        high: High price series.
+        low: Low price series.
+        close: Close price series.
+        period: ATR period.
+        
+    Returns:
+        ATR values.
+    """
+    tr1 = high - low
+    tr2 = abs(high - close.shift())
+    tr3 = abs(low - close.shift())
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.rolling(window=period).mean()
+    return atr
+
+
+def calculate_momentum(close: pd.Series, period: int = 10) -> pd.Series:
+    """Calculate momentum (rate of change).
+    
+    Args:
+        close: Close price series.
+        period: Momentum period.
+        
+    Returns:
+        Momentum values (percentage change).
+    """
+    return close.pct_change(periods=period)
+
+
+def calculate_volatility(close: pd.Series, period: int = 20) -> pd.Series:
+    """Calculate historical volatility (standard deviation of returns).
+    
+    Args:
+        close: Close price series.
+        period: Volatility period.
+        
+    Returns:
+        Volatility values.
+    """
+    returns = close.pct_change()
+    volatility = returns.rolling(window=period).std()
+    return volatility
+
+
+def calculate_volume_ma(volume: pd.Series, period: int = 20) -> pd.Series:
+    """Calculate volume moving average.
+    
+    Args:
+        volume: Volume series.
+        period: MA period.
+        
+    Returns:
+        Volume MA values.
+    """
+    return volume.rolling(window=period).mean()
+
+
+def calculate_macd(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[pd.Series, pd.Series]:
+    """Calculate MACD and Signal line.
+    
+    Args:
+        close: Close price series.
+        fast: Fast EMA period.
+        slow: Slow EMA period.
+        signal: Signal line period.
+        
+    Returns:
+        Tuple of (MACD line, Signal line).
+    """
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    return macd_line, signal_line
+
+
 def generate_features(df: pd.DataFrame, feature_names: List[str]) -> pd.DataFrame:
     """Generate technical features from OHLCV data.
     
@@ -101,6 +181,23 @@ def generate_features(df: pd.DataFrame, feature_names: List[str]) -> pd.DataFram
             features_df["returns_1"] = calculate_returns(df["close"], period=1)
         elif feature_name == "returns_5":
             features_df["returns_5"] = calculate_returns(df["close"], period=5)
+        elif feature_name == "atr_14":
+            features_df["atr_14"] = calculate_atr(df["high"], df["low"], df["close"], period=14)
+        elif feature_name == "momentum_10":
+            features_df["momentum_10"] = calculate_momentum(df["close"], period=10)
+        elif feature_name == "momentum_20":
+            features_df["momentum_20"] = calculate_momentum(df["close"], period=20)
+        elif feature_name == "volatility_20":
+            features_df["volatility_20"] = calculate_volatility(df["close"], period=20)
+        elif feature_name == "volume_ratio":
+            volume_ma = calculate_volume_ma(df["volume"], period=20)
+            features_df["volume_ratio"] = df["volume"] / volume_ma
+        elif feature_name == "macd":
+            macd_line, _ = calculate_macd(df["close"])
+            features_df["macd"] = macd_line
+        elif feature_name == "macd_signal":
+            _, signal_line = calculate_macd(df["close"])
+            features_df["macd_signal"] = signal_line
         else:
             raise ValueError(f"Unknown feature: {feature_name}")
     
@@ -115,6 +212,16 @@ def generate_features(df: pd.DataFrame, feature_names: List[str]) -> pd.DataFram
         features_df["ema_12"] = features_df["ema_12"] / df["close"]
     if "ema_26" in features_df.columns:
         features_df["ema_26"] = features_df["ema_26"] / df["close"]
+    
+    # Normalize ATR as ratio to close price
+    if "atr_14" in features_df.columns:
+        features_df["atr_14"] = features_df["atr_14"] / df["close"]
+    
+    # Normalize MACD as ratio to close price
+    if "macd" in features_df.columns:
+        features_df["macd"] = features_df["macd"] / df["close"]
+    if "macd_signal" in features_df.columns:
+        features_df["macd_signal"] = features_df["macd_signal"] / df["close"]
     
     return features_df
 

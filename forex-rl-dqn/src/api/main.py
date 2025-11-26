@@ -34,13 +34,28 @@ model_state = {
 
 
 class OHLCVBar(BaseModel):
-    """Single OHLCV bar."""
+    """Single OHLCV bar with optional pre-calculated features."""
     timestamp: str = Field(..., description="ISO 8601 timestamp")
     open: float = Field(..., gt=0, description="Open price")
     high: float = Field(..., gt=0, description="High price")
     low: float = Field(..., gt=0, description="Low price")
     close: float = Field(..., gt=0, description="Close price")
     volume: float = Field(..., ge=0, description="Volume")
+    
+    # Optional pre-calculated features
+    rsi: Optional[float] = Field(None, description="RSI indicator")
+    ema_fast: Optional[float] = Field(None, description="Fast EMA")
+    ema_slow: Optional[float] = Field(None, description="Slow EMA")
+    bb_upper: Optional[float] = Field(None, description="Bollinger Band upper")
+    bb_middle: Optional[float] = Field(None, description="Bollinger Band middle")
+    bb_lower: Optional[float] = Field(None, description="Bollinger Band lower")
+    atr: Optional[float] = Field(None, description="Average True Range")
+    momentum_10: Optional[float] = Field(None, description="10-period momentum")
+    momentum_20: Optional[float] = Field(None, description="20-period momentum")
+    volatility: Optional[float] = Field(None, description="Historical volatility")
+    volume_ma: Optional[float] = Field(None, description="Volume moving average")
+    macd: Optional[float] = Field(None, description="MACD line")
+    macd_signal: Optional[float] = Field(None, description="MACD signal line")
     
     @field_validator("high")
     @classmethod
@@ -153,10 +168,10 @@ def load_model_artifacts(
 
 
 def save_to_csv(data: List[OHLCVBar], symbol: str, data_dir: str = "data") -> tuple[str, int]:
-    """Save OHLCV data to CSV file.
+    """Save OHLCV data to CSV file with optional pre-calculated features.
     
     Args:
-        data: List of OHLCV bars.
+        data: List of OHLCV bars with optional features.
         symbol: Trading symbol (used for filename).
         data_dir: Directory to save CSV files.
         
@@ -172,17 +187,22 @@ def save_to_csv(data: List[OHLCVBar], symbol: str, data_dir: str = "data") -> tu
     csv_path = data_path / csv_filename
     
     # Convert data to list of dicts
-    records = [bar.model_dump() for bar in data]
+    records = [bar.model_dump(exclude_none=False) for bar in data]
     
     # Check if file exists
     file_exists = csv_path.exists()
     
-    # Define CSV columns
-    fieldnames = ["timestamp", "open", "high", "low", "close", "volume"]
+    # Define all possible CSV columns (OHLCV + all features)
+    fieldnames = [
+        "timestamp", "open", "high", "low", "close", "volume",
+        "rsi", "ema_fast", "ema_slow", "bb_upper", "bb_middle", "bb_lower",
+        "atr", "momentum_10", "momentum_20", "volatility", "volume_ma",
+        "macd", "macd_signal"
+    ]
     
     # Write to CSV
     with open(csv_path, mode='a', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
         
         # Write header only if file is new
         if not file_exists:
@@ -335,6 +355,164 @@ async def ingest_historical_data(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to ingest data: {str(e)}"
+        )
+
+
+def calculate_features_for_bars(data: List[OHLCVBar]) -> List[OHLCVBar]:
+    """Calculate all technical features for OHLCV bars.
+    
+    Args:
+        data: List of OHLCV bars without features.
+        
+    Returns:
+        List of OHLCV bars with calculated features.
+    """
+    # Convert to DataFrame
+    df = pd.DataFrame([{
+        'timestamp': bar.timestamp,
+        'open': bar.open,
+        'high': bar.high,
+        'low': bar.low,
+        'close': bar.close,
+        'volume': bar.volume
+    } for bar in data])
+    
+    # Import feature calculation functions
+    from src.common.features import (
+        calculate_rsi, calculate_ema, calculate_bollinger_bands,
+        calculate_atr, calculate_momentum, calculate_volatility,
+        calculate_volume_ma, calculate_macd
+    )
+    
+    # Calculate features
+    df['rsi'] = calculate_rsi(df['close'], period=14)
+    df['ema_fast'] = calculate_ema(df['close'], period=12)
+    df['ema_slow'] = calculate_ema(df['close'], period=26)
+    
+    bb_upper, bb_middle, bb_lower = calculate_bollinger_bands(df['close'], period=20)
+    df['bb_upper'] = bb_upper
+    df['bb_middle'] = bb_middle
+    df['bb_lower'] = bb_lower
+    
+    df['atr'] = calculate_atr(df['high'], df['low'], df['close'], period=14)
+    df['momentum_10'] = calculate_momentum(df['close'], period=10)
+    df['momentum_20'] = calculate_momentum(df['close'], period=20)
+    df['volatility'] = calculate_volatility(df['close'], period=20)
+    df['volume_ma'] = calculate_volume_ma(df['volume'], period=20)
+    
+    macd_line, signal_line = calculate_macd(df['close'])
+    df['macd'] = macd_line
+    df['macd_signal'] = signal_line
+    
+    # Convert back to OHLCVBar objects
+    enriched_bars = []
+    for _, row in df.iterrows():
+        bar = OHLCVBar(
+            timestamp=row['timestamp'],
+            open=row['open'],
+            high=row['high'],
+            low=row['low'],
+            close=row['close'],
+            volume=row['volume'],
+            rsi=None if pd.isna(row['rsi']) else float(row['rsi']),
+            ema_fast=None if pd.isna(row['ema_fast']) else float(row['ema_fast']),
+            ema_slow=None if pd.isna(row['ema_slow']) else float(row['ema_slow']),
+            bb_upper=None if pd.isna(row['bb_upper']) else float(row['bb_upper']),
+            bb_middle=None if pd.isna(row['bb_middle']) else float(row['bb_middle']),
+            bb_lower=None if pd.isna(row['bb_lower']) else float(row['bb_lower']),
+            atr=None if pd.isna(row['atr']) else float(row['atr']),
+            momentum_10=None if pd.isna(row['momentum_10']) else float(row['momentum_10']),
+            momentum_20=None if pd.isna(row['momentum_20']) else float(row['momentum_20']),
+            volatility=None if pd.isna(row['volatility']) else float(row['volatility']),
+            volume_ma=None if pd.isna(row['volume_ma']) else float(row['volume_ma']),
+            macd=None if pd.isna(row['macd']) else float(row['macd']),
+            macd_signal=None if pd.isna(row['macd_signal']) else float(row['macd_signal'])
+        )
+        enriched_bars.append(bar)
+    
+    return enriched_bars
+
+
+@app.post("/ingest/calculate", response_model=IngestResponse)
+async def ingest_and_calculate_features(
+    data: List[OHLCVBar],
+    symbol: str = "EURUSD",
+    save_count: int = None
+):
+    """Ingest OHLCV data, calculate all technical features, and persist to CSV.
+    
+    This endpoint receives only OHLCV data and automatically calculates:
+    - RSI, EMA (fast/slow), Bollinger Bands
+    - ATR, Momentum (10/20 periods), Volatility
+    - Volume MA, MACD (line/signal)
+    
+    IMPORTANT: Send enough historical data for feature calculation (minimum ~30 bars),
+    but only the last N bars will be saved to avoid duplication.
+    
+    Args:
+        data: List of OHLCV bars (features will be calculated).
+        symbol: Trading symbol (query parameter, default: EURUSD).
+        save_count: Number of last bars to save (default: 1 - only the most recent).
+                   Set to -1 to save all bars (useful for initial data load).
+        
+    Returns:
+        Ingestion status with records saved and file path.
+        
+    Examples:
+        # Real-time: Send last 50 bars for context, save only the newest 1
+        POST /ingest/calculate?symbol=USDJPY&save_count=1
+        
+        # Initial load: Send all data and save all
+        POST /ingest/calculate?symbol=USDJPY&save_count=-1
+        
+        # Batch: Send 100 bars, save last 10 new bars
+        POST /ingest/calculate?symbol=USDJPY&save_count=10
+    """
+    try:
+        # Validate data is not empty
+        if not data:
+            raise HTTPException(
+                status_code=400,
+                detail="Data list cannot be empty"
+            )
+        
+        # Validate minimum bars for feature calculation
+        if len(data) < 30:
+            raise HTTPException(
+                status_code=400,
+                detail="Need at least 30 bars for feature calculation. "
+                       f"Got {len(data)} bars."
+            )
+        
+        # Calculate features for all bars
+        enriched_data = calculate_features_for_bars(data)
+        
+        # Determine how many bars to save
+        if save_count is None:
+            save_count = 1  # Default: save only the last bar
+        elif save_count == -1:
+            save_count = len(enriched_data)  # Save all
+        
+        # Get the last N bars to save (avoid duplication)
+        bars_to_save = enriched_data[-save_count:] if save_count > 0 else enriched_data
+        
+        # Save to CSV with features
+        file_path, records_saved = save_to_csv(
+            data=bars_to_save,
+            symbol=symbol,
+            data_dir=os.getenv("DATA_DIR", "data")
+        )
+        
+        return IngestResponse(
+            status="success",
+            records_saved=records_saved,
+            file_path=file_path
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to ingest and calculate features: {str(e)}"
         )
 
 
