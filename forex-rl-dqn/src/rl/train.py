@@ -227,10 +227,6 @@ def train(
             fee_perc=config["env"]["fee_perc"],
             spread_perc=config["env"]["spread_perc"],
         )
-        val_window_end_prices,
-        fee_perc=config["env"]["fee_perc"],
-        spread_perc=config["env"]["spread_perc"],
-    )
     
     print(f"Train episodes: {train_env.get_episode_count()}")
     print(f"Val episodes: {val_env.get_episode_count()}")
