@@ -13,16 +13,16 @@ env:
     - ema_12
     - ema_26
     - bb_upper_20
+    - bb_middle_20
     - bb_lower_20
     - returns_1
-    - returns_5
     - atr_14
-    - volatility_20
     - momentum_10
     - momentum_20
-    - volume_ratio
-    - macd
-    - macd_signal
+    - volatility_20
+    - volume_ma_20
+    - macd_12_26
+    - macd_signal_9
 
 agent:
   gamma: 0.97
@@ -32,15 +32,15 @@ agent:
   start_training_after: 2000
   target_update_interval: 1000
   epsilon_start: 1.0
-  epsilon_end: 0.01
-  epsilon_decay_steps: 60000
-  grad_clip_norm: 10.0
+  epsilon_end: 0.05  # Keep some exploration
+  epsilon_decay_steps: 80000
+  grad_clip_norm: 5.0  # Prevent gradient explosion
   dueling: true
   lstm_hidden: 256
   mlp_hidden: 512
 
 train:
-  max_steps: 120000
+  max_steps: 150000  # More training for 14 features
   eval_interval: 5000
   checkpoint_interval: 10000
   device: auto
