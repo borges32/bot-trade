@@ -1,0 +1,197 @@
+# Configuração Híbrida: LightGBM + PPO para Trading Forex
+# =========================================================
+
+# Configurações Gerais
+general:
+  seed: 42
+  verbose: true
+  log_dir: "logs/hybrid"
+  models_dir: "models/hybrid"
+  
+# Dados
+data:
+  train_file: "data/usdjpy_history_30m.csv"  # Arquivo de treino
+  val_split: 0.15  # 15% para validação
+  test_split: 0.15  # 15% para teste
+  
+  # Colunas OBRIGATÓRIAS no CSV (OHLCV)
+  timestamp_col: "timestamp"
+  open_col: "open"
+  high_col: "high"
+  low_col: "low"
+  close_col: "close"
+  volume_col: "volume"
+  
+  # Indicadores PRÉ-CALCULADOS esperados no CSV do cTrader/MT5
+  # O sistema detecta automaticamente e usa se disponíveis
+  # Se não existirem, serão calculados automaticamente
+  precomputed_indicators:
+    rsi: "rsi"                    # Relative Strength Index
+    ema_fast: "ema_fast"          # EMA rápida (9 ou 12 períodos)
+    ema_slow: "ema_slow"          # EMA lenta (21 ou 26 períodos)
+    bb_upper: "bb_upper"          # Bollinger Band superior
+    bb_middle: "bb_middle"        # Bollinger Band média
+    bb_lower: "bb_lower"          # Bollinger Band inferior
+    atr: "atr"                    # Average True Range
+    momentum_10: "momentum_10"    # Momentum 10 períodos
+    momentum_20: "momentum_20"    # Momentum 20 períodos
+    volatility: "volatility"      # Volatilidade
+    volume_ma: "volume_ma"        # Média móvel de volume
+    macd: "macd"                  # MACD
+    macd_signal: "macd_signal"    # MACD Signal
+  
+  # Janela de lookback para features
+  lookback_window: 50  # Últimos 50 candles para criar features
+  
+# Features Técnicas
+features:
+  # NOTA: O sistema agora usa OptimizedFeatureEngineer que:
+  # 1. Detecta automaticamente indicadores pré-calculados no CSV
+  # 2. Usa indicadores do CSV quando disponíveis (mais rápido!)
+  # 3. Calcula apenas indicadores complementares que faltam
+  # 4. Cria ~75 features no total (OHLCV + indicadores + derivadas)
+  
+  # Indicadores complementares (calculados se não estiverem no CSV)
+  use_sma: true
+  sma_periods: [20, 50]  # SMAs adicionais
+  
+  use_ema: true
+  ema_periods: [9, 21, 55]  # Será pulado se ema_fast/slow existirem
+  
+  use_rsi: true
+  rsi_period: 14  # Será pulado se 'rsi' existir no CSV
+  
+  use_macd: true
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9  # Será pulado se 'macd' existir no CSV
+  
+  use_bollinger: true
+  bb_period: 20
+  bb_std: 2  # Será pulado se 'bb_upper' existir no CSV
+  
+  use_atr: true
+  atr_period: 14  # Será pulado se 'atr' existir no CSV
+  
+  use_stochastic: true
+  stoch_k: 14
+  stoch_d: 3  # Sempre calculado (não vem no CSV normalmente)
+  
+  use_adx: true
+  adx_period: 14  # Sempre calculado (não vem no CSV normalmente)
+  
+  # Features de preço (sempre calculadas)
+  use_returns: true
+  return_periods: [1, 3, 5, 10]  # Retornos multi-período
+  
+  use_volatility: true
+  volatility_window: 20  # Será pulado se 'volatility' existir
+  
+  use_volume_features: true  # Volume ratio, spikes, etc.
+
+# LightGBM - Modelo Supervisionado
+lightgbm:
+  # Tipo de modelo: 'classifier' ou 'regressor'
+  model_type: "classifier"  # classifier: preve direção (alta/baixa)
+  
+  # Target definition
+  prediction_horizon: 5  # N candles à frente para prever
+  
+  # Para classifier: target = 1 se close[t+N] > close[t], senão 0
+  # Para regressor: target = (close[t+N] - close[t]) / close[t]
+  
+  # Threshold para classificação (opcional)
+  classification_threshold: 0.0  # % mínimo de movimento para considerar alta/baixa
+  
+  # Hiperparâmetros LightGBM
+  params:
+    objective: "binary"  # binary para classifier, regression para regressor
+    metric: "auc"  # auc para classifier, rmse para regressor
+    boosting_type: "gbdt"
+    num_leaves: 31
+    max_depth: 6
+    learning_rate: 0.05
+    n_estimators: 500
+    min_child_samples: 20
+    subsample: 0.8
+    subsample_freq: 1
+    colsample_bytree: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 0.1
+    random_state: 42
+    n_jobs: -1
+    verbose: -1
+    
+  # Early stopping
+  early_stopping_rounds: 50
+  
+  # Feature importance
+  save_feature_importance: true
+
+# PPO - Reinforcement Learning
+ppo:
+  # Ambiente
+  env:
+    initial_balance: 10000.0
+    leverage: 1.0  # Alavancagem (1.0 = sem alavancagem)
+    commission: 0.0001  # Reduzido de 0.0002 para facilitar aprendizado inicial
+    slippage: 0.00005  # Reduzido de 0.0001
+    
+    # Gestão de risco
+    max_position_size: 1.0  # Fração máxima do capital por posição
+    stop_loss_pct: 0.02  # 2% stop loss
+    take_profit_pct: 0.04  # 4% take profit
+    max_drawdown_pct: 0.25  # Aumentado de 0.20 para 0.25 (permite episódios mais longos)
+    
+    # Recompensa
+    reward_scaling: 1.0
+    risk_penalty_lambda: 0.05  # Reduzido de 0.1 para penalizar menos drawdown
+    
+  # Hiperparâmetros PPO
+  params:
+    learning_rate: 0.001  # Aumentado de 0.0003 para escapar de mínimo local
+    n_steps: 2048  # Passos por atualização
+    batch_size: 64
+    n_epochs: 10
+    gamma: 0.99  # Fator de desconto
+    gae_lambda: 0.95  # GAE lambda
+    clip_range: 0.2
+    clip_range_vf: null
+    ent_coef: 0.03  # Aumentado de 0.01 para mais exploração
+    vf_coef: 0.5  # Coeficiente da função valor
+    max_grad_norm: 0.5
+    
+  # Arquitetura da rede neural
+  policy_network:
+    net_arch:
+      - 256
+      - 256
+      - 128
+    activation: "tanh"
+  
+  # Treinamento
+  training:
+    total_timesteps: 500000
+    eval_freq: 10000
+    n_eval_episodes: 10
+    save_freq: 50000
+    
+  # Device
+  device: "auto"  # 'auto', 'cpu', 'cuda'
+
+# Inferência
+inference:
+  # Modelos treinados
+  lightgbm_model_path: "models/hybrid/lightgbm_model.txt"
+  ppo_model_path: "models/hybrid/ppo_model.zip"
+  
+  # Configurações de inferência
+  min_confidence: 0.6  # Confiança mínima do LightGBM para ação não-neutra
+  
+# API
+api:
+  host: "0.0.0.0"
+  port: 8000
+  title: "Forex Trading Signal API - LightGBM + PPO"
+  description: "API para sinais de trading baseados em LightGBM + PPO"
+  version: "1.0.0"

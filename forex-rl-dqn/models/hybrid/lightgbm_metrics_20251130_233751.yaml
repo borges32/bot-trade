@@ -1,0 +1,67 @@
+test:
+  accuracy: !!python/object/apply:numpy.core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    5eqfchT14D8=
+  auc: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    0ivcwicl4D8=
+  n_samples: 3493
+  precision: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    4fEZ7hoE4T8=
+  recall: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    DZ4jULTV7D8=
+train:
+  accuracy: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    t8V86Ipc5D8=
+  auc: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    Ahopoxun5j8=
+  n_samples: 16299
+  precision: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    QHw0IS9s4z8=
+  recall: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    pVKpVCqV6j8=
+val:
+  accuracy: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    LFtUrUcW4D8=
+  auc: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    xPAEiWl/4T8=
+  n_samples: 3493
+  precision: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    gptxO7133z8=
+  recall: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    3BoJ3BoJ7D8=

@@ -1,0 +1,84 @@
+test:
+  max_drawdown: !!python/object/apply:numpy.core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    nu/XfOUrTD8=
+  max_reward: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    cF1qdnjy9b8=
+  mean_drawdown: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    nu/XfOUrTD8=
+  mean_equity: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    TqNLjbODw0A=
+  mean_return: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    nu/XfOUrTL8=
+  mean_reward: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    cF1qdnjy9b8=
+  mean_trades: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAAEA=
+  mean_win_rate: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAAAA=
+  min_reward: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    cF1qdnjy9b8=
+  n_episodes: 10
+  std_equity: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAgD0=
+  std_return: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAAAA=
+  std_reward: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAAAA=
+train:
+  mean_equity: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    K1sw+VdTvUA=
+  mean_reward: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    l4g6TkAncMA=
+  mean_trades: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    lTVlTVmvjkA=
+  mean_win_rate: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    Gp9NTB5F1T8=
+  std_reward: !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    BGJV4IBxTUA=
