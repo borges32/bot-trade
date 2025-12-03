@@ -89,11 +89,9 @@ def create_features(df: pd.DataFrame, config: dict) -> tuple:
     Returns:
         Tuple (df_with_features, feature_columns)
     """
-    feature_config = config['features']
-    
     logger.info("Creating technical features...")
     
-    fe = OptimizedFeatureEngineer(feature_config)
+    fe = OptimizedFeatureEngineer(config)
     df_features = fe.create_features(df)
     
     # Remove NaN gerados pelos indicadores
@@ -106,9 +104,70 @@ def create_features(df: pd.DataFrame, config: dict) -> tuple:
     feature_columns = [col for col in df_features.columns if col not in exclude_cols]
     
     logger.info(f"Created {len(feature_columns)} features")
-    logger.info(f"Features: {feature_columns}")
     
     return df_features, feature_columns
+
+
+def select_features(
+    df: pd.DataFrame, 
+    feature_columns: list, 
+    config: dict
+) -> list:
+    """
+    Seleciona features mais relevantes baseado em correlação com target.
+    
+    Args:
+        df: DataFrame com features e close price
+        feature_columns: Lista de features candidatas
+        config: Configuração
+        
+    Returns:
+        Lista de features selecionadas
+    """
+    lgbm_config = config['lightgbm']
+    min_corr = lgbm_config.get('min_correlation_threshold', 0.01)
+    
+    if min_corr <= 0:
+        logger.info("Feature selection disabled (min_correlation_threshold <= 0)")
+        return feature_columns
+    
+    logger.info(f"Selecting features with correlation > {min_corr}")
+    
+    # Cria target temporário para calcular correlação
+    from src.models.lightgbm_model import LightGBMPredictor
+    temp_predictor = LightGBMPredictor(lgbm_config)
+    target = temp_predictor.create_target(df)
+    
+    # Remove NaN do target
+    valid_idx = ~target.isna()
+    df_valid = df[valid_idx].copy()
+    target_valid = target[valid_idx]
+    
+    # Calcula correlação de cada feature
+    correlations = {}
+    for col in feature_columns:
+        corr = abs(df_valid[col].corr(target_valid))
+        correlations[col] = corr
+    
+    # Seleciona features acima do threshold
+    selected_features = [col for col, corr in correlations.items() if corr >= min_corr]
+    
+    # Log das features removidas
+    removed_features = set(feature_columns) - set(selected_features)
+    if removed_features:
+        logger.info(f"Removed {len(removed_features)} features with low correlation:")
+        for feat in sorted(removed_features):
+            logger.info(f"  - {feat}: {correlations[feat]:.4f}")
+    
+    logger.info(f"Selected {len(selected_features)}/{len(feature_columns)} features")
+    
+    # Log top 10 features
+    top_features = sorted(correlations.items(), key=lambda x: x[1], reverse=True)[:10]
+    logger.info("Top 10 features by correlation:")
+    for feat, corr in top_features:
+        logger.info(f"  {feat}: {corr:.4f}")
+    
+    return selected_features
 
 
 def split_data(df: pd.DataFrame, config: dict) -> tuple:
@@ -167,6 +226,9 @@ def train_lightgbm(config_path: str = 'config_hybrid.yaml') -> dict:
     # Cria features
     df_features, feature_columns = create_features(df, config)
     
+    # Seleciona features mais relevantes
+    selected_features = select_features(df_features, feature_columns, config)
+    
     # Divide dados
     train_df, val_df, test_df = split_data(df_features, config)
     
@@ -178,9 +240,9 @@ def train_lightgbm(config_path: str = 'config_hybrid.yaml') -> dict:
     
     # Prepara dados de treino
     logger.info("Preparing training data...")
-    X_train, y_train = predictor.prepare_data(train_df, feature_columns, create_target=True)
-    X_val, y_val = predictor.prepare_data(val_df, feature_columns, create_target=True)
-    X_test, y_test = predictor.prepare_data(test_df, feature_columns, create_target=True)
+    X_train, y_train = predictor.prepare_data(train_df, selected_features, create_target=True)
+    X_val, y_val = predictor.prepare_data(val_df, selected_features, create_target=True)
+    X_test, y_test = predictor.prepare_data(test_df, selected_features, create_target=True)
     
     # Treina modelo
     logger.info("Training LightGBM...")
@@ -220,7 +282,7 @@ def train_lightgbm(config_path: str = 'config_hybrid.yaml') -> dict:
     return {
         'metrics': metrics,
         'model_path': str(latest_path),
-        'feature_columns': feature_columns
+        'feature_columns': selected_features
     }
 
 

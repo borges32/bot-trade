@@ -91,9 +91,9 @@ features:
 lightgbm:
   model_type: "classifier"
   
-  # Target: prever N candles à frente
-  prediction_horizon: 4  # 4 candles = 1 hora à frente
-  classification_threshold: 0.0001  # 0.01% movimento mínimo
+  # Target: prever N candles à frente (otimizado via diagnóstico)
+  prediction_horizon: 12  # 12 candles = 3 horas à frente (15m)
+  classification_threshold: 0.0002  # 0.02% movimento mínimo (captura sinal real)
   
   params:
     objective: "binary"
@@ -109,9 +109,13 @@ lightgbm:
     colsample_bytree: 0.8
     reg_alpha: 0.1
     reg_lambda: 0.1
+    class_weight: "balanced"  # Balanceia classes automaticamente
     random_state: 42
     n_jobs: -1
     verbose: -1
+  
+  # Feature selection
+  min_correlation_threshold: 0.01  # Remove features com corr < 0.01
     
   early_stopping_rounds: 50
   save_feature_importance: true
