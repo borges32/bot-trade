@@ -9,7 +9,7 @@ echo "  Treinamento Completo"
 echo "========================================="
 echo ""
 
-CONFIG_FILE="${1:-config_hybrid_15m.yaml}"
+CONFIG_FILE="${1:-config_hybrid_30m.yaml}"
 
 echo "Usando configuração: $CONFIG_FILE"
 echo ""
