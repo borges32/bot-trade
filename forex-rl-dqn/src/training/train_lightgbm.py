@@ -20,10 +20,7 @@ sys.path.insert(0, str(root_dir))
 from src.common.features_optimized import OptimizedFeatureEngineer
 from src.models.lightgbm_model import LightGBMPredictor
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Logger será configurado depois de ler o config
 logger = logging.getLogger(__name__)
 
 
@@ -125,7 +122,16 @@ def select_features(
         Lista de features selecionadas
     """
     lgbm_config = config['lightgbm']
-    min_corr = lgbm_config.get('min_correlation_threshold', 0.01)
+    
+    # Se min_correlation_threshold não existe ou é <= 0, usa todas as features
+    if 'min_correlation_threshold' not in lgbm_config:
+        logger.warning("⚠️  ATENÇÃO: Seleção de features DESABILITADA!")
+        logger.warning("⚠️  Usando TODAS as features calculadas (pode incluir features desativadas nos flags)")
+        logger.warning("⚠️  Para filtrar features, adicione 'min_correlation_threshold' no config lightgbm")
+        logger.info(f"Feature selection disabled - using all {len(feature_columns)} features")
+        return feature_columns
+    
+    min_corr = lgbm_config['min_correlation_threshold']
     
     if min_corr <= 0:
         logger.info("Feature selection disabled (min_correlation_threshold <= 0)")
@@ -216,6 +222,21 @@ def train_lightgbm(config_path: str = 'config_hybrid.yaml') -> dict:
     # Carrega configuração
     config = load_config(config_path)
     
+    # Configura logging baseado em verbose
+    log_level = logging.INFO if config['general'].get('verbose', True) else logging.WARNING
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        force=True
+    )
+    
+    # Define seed global para reprodutibilidade
+    seed = config['general']['seed']
+    np.random.seed(seed)
+    import random
+    random.seed(seed)
+    logger.info(f"Random seed set to: {seed}")
+    
     # Cria diretório de modelos
     models_dir = root_dir / config['general']['models_dir']
     models_dir.mkdir(parents=True, exist_ok=True)
@@ -225,16 +246,30 @@ def train_lightgbm(config_path: str = 'config_hybrid.yaml') -> dict:
     
     # Cria features
     df_features, feature_columns = create_features(df, config)
+    logger.info(f"📊 Features disponíveis após criar indicadores: {len(feature_columns)}")
+    logger.info(f"📋 Lista de features: {feature_columns[:20]}...")  # Mostra primeiras 20
     
     # Seleciona features mais relevantes
     selected_features = select_features(df_features, feature_columns, config)
+    logger.info(f"✅ Features selecionadas para treino: {len(selected_features)}")
+    logger.info(f"📋 Features finais: {selected_features[:20]}...")  # Mostra primeiras 20
     
     # Divide dados
     train_df, val_df, test_df = split_data(df_features, config)
     
-    # Cria modelo
-    lgbm_config = config['lightgbm']
-    lgbm_config['seed'] = config['general']['seed']
+    # Cria modelo - aplica seed do general aos params
+    lgbm_config = config['lightgbm'].copy()
+    if 'params' not in lgbm_config:
+        lgbm_config['params'] = {}
+    
+    # Sobrescreve random_state com seed do general
+    lgbm_config['params']['random_state'] = config['general']['seed']
+    
+    # Configura verbose do LightGBM baseado no general.verbose
+    if config['general'].get('verbose', True):
+        lgbm_config['params']['verbose'] = 1
+    else:
+        lgbm_config['params']['verbose'] = -1
     
     predictor = LightGBMPredictor(lgbm_config)
     

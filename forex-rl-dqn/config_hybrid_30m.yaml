@@ -1,5 +1,5 @@
-# Configuração Híbrida: LightGBM + PPO para Trading Forex - TIMEFRAME 30 MINUTOS
-# =================================================================================
+# Configuração LightGBM para Trading Forex - TIMEFRAME 30 MINUTOS
+# =================================================================
 # Períodos de indicadores otimizados para timeframe de 30 minutos
 # Em 30m, 1 dia = 48 candles, 1 semana = 336 candles
 
@@ -89,15 +89,14 @@ features:
 
 # LightGBM - Modelo Supervisionado
 lightgbm:
-  model_type: "classifier"
+  model_type: "regressor"  # MUDOU: regressor em vez de classifier
   
-  # Target: prever N candles à frente (otimizado via diagnóstico)
-  prediction_horizon: 20  # 20 candles = 10 horas à frente (30m)
-  classification_threshold: 0.0001  # 0.01% movimento mínimo (balanceado em 50.9%)
+  # Target: prever retorno percentual N candles à frente
+  prediction_horizon: 10  # 10 candles = 5 horas à frente (30m)
   
   params:
-    objective: "binary"
-    metric: "auc"
+    objective: "regression"  # regression para prever retorno contínuo
+    metric: "rmse"  # RMSE para regressão (menor é melhor)
     boosting_type: "gbdt"
     num_leaves: 31
     max_depth: 6
@@ -107,75 +106,24 @@ lightgbm:
     subsample: 0.8
     subsample_freq: 1
     colsample_bytree: 0.8
-    reg_alpha: 0.1
-    reg_lambda: 0.1
-    class_weight: "balanced"  # Balanceia classes automaticamente
+    reg_alpha: 0.3  # Aumentado para regressão (evita overfitting)
+    reg_lambda: 0.3  # Aumentado para regressão
     random_state: 42
     n_jobs: -1
     verbose: -1
-  
-  # Feature selection
-  min_correlation_threshold: 0.01  # Remove features com corr < 0.01
     
   early_stopping_rounds: 50
   save_feature_importance: true
 
-# PPO - Reinforcement Learning
-ppo:
-  env:
-    initial_balance: 10000.0
-    leverage: 1.0
-    commission: 0.0001  # Spread típico para 30m
-    slippage: 0.00005
-    
-    # Gestão de risco - Ajustado para 30m
-    max_position_size: 1.0
-    stop_loss_pct: 0.02  # 2% (30m: movimentos maiores que 15m)
-    take_profit_pct: 0.04  # 4% (ratio 2:1)
-    max_drawdown_pct: 0.25  # 25% drawdown máximo
-    
-    # Recompensa
-    reward_scaling: 1.0
-    risk_penalty_lambda: 0.05  # Penalidade menor (permite mais risco)
-    
-  params:
-    learning_rate: 0.001  # Taxa de aprendizado padrão
-    n_steps: 2048
-    batch_size: 64
-    n_epochs: 10
-    gamma: 0.99  # Desconto padrão (30m: horizonte mais longo)
-    gae_lambda: 0.95
-    clip_range: 0.2
-    clip_range_vf: null
-    ent_coef: 0.03  # Exploração moderada-alta
-    vf_coef: 0.5
-    max_grad_norm: 0.5
-    
-  policy_network:
-    net_arch:
-      - 256
-      - 256
-      - 128
-    activation: "tanh"
-  
-  training:
-    total_timesteps: 500000  # ~10400 candles de 30m
-    eval_freq: 10000
-    n_eval_episodes: 10
-    save_freq: 50000
-    
-  device: "auto"
-
 # Inferência
 inference:
   lightgbm_model_path: "models/hybrid_30m/lightgbm_model.txt"
-  ppo_model_path: "models/hybrid_30m/ppo_model.zip"
-  min_confidence: 0.60  # Confiança padrão para 30m
+  min_confidence: 0.05  # 5% - threshold realista para forex (movimentos pequenos)
   
 # API
 api:
   host: "0.0.0.0"
-  port: 8000  # Porta padrão
-  title: "Forex Trading Signal API - 30m - LightGBM + PPO"
-  description: "API para sinais de trading 30 minutos baseados em LightGBM + PPO"
+  port: 8000
+  title: "Forex Trading Signal API - 30m - LightGBM"
+  description: "API para sinais de trading 30 minutos baseados em LightGBM"
   version: "1.0.0"

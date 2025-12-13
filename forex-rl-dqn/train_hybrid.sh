@@ -33,7 +33,7 @@ echo ""
 echo "========================================="
 echo "PASSO 2/2: Treinando PPO"
 echo "========================================="
-python3 -m src.training.train_ppo --config "$CONFIG_FILE"
+#python3 -m src.training.train_ppo --config "$CONFIG_FILE"
 
 if [ $? -ne 0 ]; then
     echo "❌ Erro no treinamento do PPO"

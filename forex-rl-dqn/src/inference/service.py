@@ -1,8 +1,8 @@
 """
-API FastAPI para sinais de trading baseados em LightGBM + PPO.
+API FastAPI para sinais de trading baseados em LightGBM.
 
 Este serviço expõe endpoints HTTP para receber dados recentes de mercado
-e retornar decisões de trading (comprar, vender, neutro).
+e retornar sinais de trading (BUY, SELL, NEUTRAL).
 """
 
 import sys
@@ -79,16 +79,6 @@ class SignalRequest(BaseModel):
         ..., 
         description="Lista de candles recentes (mínimo 50, última = mais recente)",
         min_length=50
-    )
-    current_position: Optional[int] = Field(
-        0,
-        description="Posição atual: -1=short, 0=flat, 1=long",
-        ge=-1,
-        le=1
-    )
-    deterministic: bool = Field(
-        True,
-        description="Se True, usa política determinística"
     )
     
     class Config:
@@ -177,34 +167,27 @@ async def startup_event():
     global predictor
     
     logger.info("Starting up API...")
-    logger.info("Loading models...")
+    logger.info("Loading LightGBM model...")
     
     try:
         models_dir = root_dir / config['general']['models_dir']
-        
         lightgbm_path = models_dir / 'lightgbm_model'
-        ppo_path = models_dir / 'ppo_model'
         
-        # Verifica se modelos existem
+        # Verifica se modelo existe
         if not lightgbm_path.with_suffix('.txt').exists():
             raise FileNotFoundError(f"LightGBM model not found at {lightgbm_path}")
-        
-        if not ppo_path.with_suffix('.zip').exists():
-            raise FileNotFoundError(f"PPO model not found at {ppo_path}")
         
         # Carrega preditor
         predictor = TradingPredictor(
             lightgbm_path=str(lightgbm_path),
-            ppo_path=str(ppo_path),
-            feature_config=config['features'],
-            env_config=config['ppo']['env']
+            config=config
         )
         
-        logger.info("Models loaded successfully!")
+        logger.info("Model loaded successfully!")
         logger.info("API ready to accept requests")
         
     except Exception as e:
-        logger.error(f"Failed to load models: {e}")
+        logger.error(f"Failed to load model: {e}")
         raise
 
 
@@ -228,9 +211,7 @@ async def root():
         "endpoints": {
             "health": "/health",
             "signal": "/signal (POST)",
-            "execute": "/execute (POST)",
-            "state": "/state (GET)",
-            "reset": "/reset (POST)"
+            "batch_predict": "/batch_predict (POST)"
         }
     }
 
@@ -253,8 +234,8 @@ async def get_signal(request: SignalRequest):
     """
     Obtém sinal de trading baseado em candles recentes.
     
-    Recebe dados de mercado recentes e retorna a ação recomendada
-    pelo sistema híbrido LightGBM + PPO.
+    Recebe dados de mercado recentes e retorna o sinal (BUY/SELL/NEUTRAL)
+    baseado no modelo LightGBM.
     """
     if predictor is None:
         raise HTTPException(status_code=503, detail="Models not loaded")
@@ -265,97 +246,22 @@ async def get_signal(request: SignalRequest):
         
         # Faz predição
         result = predictor.predict_from_recent_data(
-            recent_candles=candles_data,
-            current_position=request.current_position,
-            deterministic=request.deterministic
+            recent_candles=candles_data
         )
         
         # Adiciona timestamp
         result['timestamp'] = datetime.now().isoformat() + 'Z'
         
         logger.info(
-            f"Signal generated: {result['action_name']} "
+            f"Signal generated: {result['signal']} "
             f"(confidence: {result['confidence']:.2f}, "
-            f"lgbm_signal: {result['lightgbm_signal']:.4f})"
+            f"predicted_return: {result['predicted_return']:.4f})"
         )
         
         return result
         
     except Exception as e:
         logger.error(f"Error generating signal: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/execute")
-async def execute_action(request: ExecuteActionRequest):
-    """
-    Executa uma ação e atualiza o estado interno.
-    
-    Use este endpoint após receber um sinal para executar a ação
-    e manter o estado sincronizado.
-    """
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Models not loaded")
-    
-    try:
-        result = predictor.execute_action(
-            action=request.action,
-            price=request.price
-        )
-        
-        logger.info(
-            f"Action executed: {predictor.ACTION_NAMES.get(request.action, 'unknown')} "
-            f"at {request.price:.5f}, PnL: {result.get('pnl', 0):.2f}"
-        )
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error executing action: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/state", response_model=StateResponse)
-async def get_state():
-    """
-    Obtém o estado atual da conta.
-    
-    Retorna informações sobre posição, PnL, equity, etc.
-    """
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Models not loaded")
-    
-    try:
-        state = predictor.get_state()
-        return state
-        
-    except Exception as e:
-        logger.error(f"Error getting state: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/reset")
-async def reset_state():
-    """
-    Reseta o estado interno do preditor.
-    
-    Use para começar uma nova sessão de trading.
-    """
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Models not loaded")
-    
-    try:
-        predictor.reset_state()
-        logger.info("State reset")
-        
-        return {
-            "status": "success",
-            "message": "State reset successfully",
-            "new_state": predictor.get_state()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error resetting state: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

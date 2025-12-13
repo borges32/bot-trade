@@ -156,11 +156,10 @@ def main():
     print("=" * 80)
     print("\n📊 Próximos passos:")
     print("   1. Use os dados processados para treinar o LightGBM:")
-    print("      python src/training/train_lightgbm.py")
-    print("\n   2. Depois treine o PPO:")
-    print("      python src/training/train_ppo.py")
-    print("\n   3. Ou use o script automático:")
-    print("      ./train_hybrid.sh")
+    print("      python -m src.training.train_lightgbm --config config_hybrid_30m.yaml")
+    print("\n   2. Ou use o script automático:")
+    print("      ./retrain_lightgbm_30m.sh")
+
 
 
 if __name__ == '__main__':

@@ -1,8 +1,8 @@
 """
-Módulo de modelos híbridos: LightGBM + PPO
+Módulo de modelos: LightGBM
 """
 
 from .lightgbm_model import LightGBMPredictor
-from .ppo_agent import PPOTradingAgent
 
-__all__ = ['LightGBMPredictor', 'PPOTradingAgent']
+__all__ = ['LightGBMPredictor']
+

@@ -1,11 +1,11 @@
-# Configuração Híbrida: LightGBM + PPO para Trading Forex - TIMEFRAME 15 MINUTOS
-# =================================================================================
+# Configuração LightGBM para Trading Forex - TIMEFRAME 15 MINUTOS
+# =================================================================
 # Períodos de indicadores otimizados para timeframe de 15 minutos
 # Em 15m, 1 dia = 96 candles, 1 semana = 672 candles
 
 # Configurações Gerais
 general:
-  seed: 42
+  seed: 55
   verbose: true
   log_dir: "logs/hybrid_15m"
   models_dir: "models/hybrid_15m"
@@ -27,6 +27,7 @@ data:
   
   # Janela de lookback para features
   # 15m: 96 candles = 1 dia de trading
+  #lookback_window: 96
   lookback_window: 96
   
 # Features Técnicas - OTIMIZADO PARA 15 MINUTOS
@@ -34,7 +35,7 @@ features:
   # === INDICADORES PRINCIPAIS (sempre calculados do zero) ===
   
   # RSI - Timeframe curto requer período menor
-  use_rsi: true
+  use_rsi: false
   rsi_period: 10  # 15m: 10 períodos = 2.5 horas
   
   # EMAs - Períodos ajustados para 15m
@@ -55,127 +56,85 @@ features:
   bb_std: 2.0
   
   # ATR - Volatilidade de curto prazo
-  use_atr: true
+  use_atr: false
   atr_period: 10  # 2.5 horas
   
   # Momentum - Períodos curtos
-  use_momentum: true
+  use_momentum: false
   momentum_periods: [6, 12]  # 6=1.5h, 12=3h
   
   # SMAs - Períodos ajustados
-  use_sma: true
+  use_sma: false
   sma_periods: [16, 32]  # 16=4h, 32=8h
   
   # Stochastic - Mais sensível
-  use_stochastic: true
+  use_stochastic: false
   stoch_k: 10  # 2.5 horas
   stoch_d: 3
   
   # ADX - Força de tendência
-  use_adx: true
+  use_adx: false
   adx_period: 10  # 2.5 horas
   
   # Volatilidade - Janela curta
-  use_volatility: true
+  use_volatility: false
   volatility_window: 16  # 4 horas
   
   # Volume - Médias móveis
-  use_volume_features: true
+  use_volume_features: false
   volume_ma_period: 16  # 4 horas
   
   # Retornos multi-período
-  use_returns: true
+  use_returns: false
   return_periods: [1, 2, 4, 8, 16]  # 15m, 30m, 1h, 2h, 4h
 
 # LightGBM - Modelo Supervisionado
 lightgbm:
-  model_type: "classifier"
+  model_type: "regressor"  # MUDOU: regressor em vez de classifier
   
-  # Target: prever N candles à frente (otimizado via diagnóstico)
-  prediction_horizon: 12  # 12 candles = 3 horas à frente (15m)
-  classification_threshold: 0.0002  # 0.02% movimento mínimo (captura sinal real)
+  # Target: prever retorno percentual N candles à frente
+  prediction_horizon: 3  # 3 candles = 45 minutos à frente (15m)
   
   params:
-    objective: "binary"
-    metric: "auc"
-    boosting_type: "gbdt"
-    num_leaves: 31
-    max_depth: 6
-    learning_rate: 0.05
-    n_estimators: 500
-    min_child_samples: 20
-    subsample: 0.8
-    subsample_freq: 1
-    colsample_bytree: 0.8
-    reg_alpha: 0.1
-    reg_lambda: 0.1
-    class_weight: "balanced"  # Balanceia classes automaticamente
-    random_state: 42
-    n_jobs: -1
-    verbose: -1
-  
-  # Feature selection
-  min_correlation_threshold: 0.01  # Remove features com corr < 0.01
+    # === PARÂMETROS PRINCIPAIS ===
+    objective: "regression"  # Tipo de tarefa: regression (prever valor contínuo) ou binary (classificação)
+    metric: "rmse"  # Métrica de avaliação: RMSE (Root Mean Squared Error) para regressão
+    boosting_type: "gbdt"  # Tipo de boosting: gbdt (Gradient Boosting Decision Tree) - padrão e mais preciso
     
-  early_stopping_rounds: 50
-  save_feature_importance: true
-
-# PPO - Reinforcement Learning
-ppo:
-  env:
-    initial_balance: 10000.0
-    leverage: 1.0
-    commission: 0.0001  # Spread típico para 15m
-    slippage: 0.00005
+    # === ESTRUTURA DAS ÁRVORES ===
+    num_leaves: 50  # Número máximo de folhas por árvore - controla complexidade (padrão: 31)
+    max_depth: 6  # Profundidade máxima das árvores - previne overfitting (padrão: -1 = sem limite)
     
-    # Gestão de risco - Ajustado para 15m
-    max_position_size: 1.0
-    stop_loss_pct: 0.015  # 1.5% (15m: movimentos menores)
-    take_profit_pct: 0.03  # 3% (ratio 2:1)
-    max_drawdown_pct: 0.20  # 20% drawdown máximo
+    # === APRENDIZADO ===
+    learning_rate: 0.02  # Taxa de aprendizado - menor = mais conservador mas pode precisar mais árvores (padrão: 0.1)
+    n_estimators: 800  # Número de árvores (boosting rounds) - mais árvores = mais preciso mas mais lento
     
-    # Recompensa
-    reward_scaling: 1.0
-    risk_penalty_lambda: 0.08  # Penalidade moderada
+    # === REGULARIZAÇÃO (PREVINE OVERFITTING) ===
+    min_child_samples: 20  # Mínimo de amostras por folha - aumentar previne overfitting (padrão: 20)
+    subsample: 0.8  # Fração de amostras usadas por árvore (0.8 = 80%) - reduz overfitting (padrão: 1.0)
+    subsample_freq: 1  # Frequência de subsampling - 1 = a cada iteração (padrão: 0)
+    colsample_bytree: 0.8  # Fração de features por árvore (0.8 = 80%) - reduz overfitting (padrão: 1.0)
+    reg_alpha: 0.3  # Regularização L1 (Lasso) - penaliza features pouco importantes (padrão: 0.0)
+    reg_lambda: 0.3  # Regularização L2 (Ridge) - suaviza pesos dos modelos (padrão: 0.0)
     
-  params:
-    learning_rate: 0.0008  # Ajustado para 15m
-    n_steps: 2048
-    batch_size: 64
-    n_epochs: 10
-    gamma: 0.98  # Desconto menor (15m: futuro mais próximo)
-    gae_lambda: 0.95
-    clip_range: 0.2
-    clip_range_vf: null
-    ent_coef: 0.025  # Exploração moderada
-    vf_coef: 0.5
-    max_grad_norm: 0.5
+    # === REPRODUTIBILIDADE E PERFORMANCE ===
+    random_state: 42  # Seed para reprodutibilidade - SERÁ SOBRESCRITO por general.seed
+    n_jobs: -1  # Número de threads paralelas - (-1 = usar todos os cores disponíveis)
+    verbose: -1  # Nível de log do LightGBM - SERÁ SOBRESCRITO por general.verbose (1=normal, -1=silencioso)
     
-  policy_network:
-    net_arch:
-      - 256
-      - 256
-      - 128
-    activation: "tanh"
-  
-  training:
-    total_timesteps: 500000  # ~5200 candles de 15m
-    eval_freq: 10000
-    n_eval_episodes: 10
-    save_freq: 50000
-    
-  device: "auto"
+  # === CONTROLE DE TREINAMENTO ===
+  early_stopping_rounds: 50  # Para treinamento se métrica não melhorar por N rounds - economiza tempo
+  save_feature_importance: true  # Salva importância das features em CSV - útil para análise
 
 # Inferência
 inference:
   lightgbm_model_path: "models/hybrid_15m/lightgbm_model.txt"
-  ppo_model_path: "models/hybrid_15m/ppo_model.zip"
-  min_confidence: 0.58  # Confiança menor para 15m (mais sinais)
+  min_confidence: 0.03  # 3% - threshold para 15m (timeframe mais curto)
   
 # API
 api:
   host: "0.0.0.0"
-  port: 8001  # Porta diferente de 30m
-  title: "Forex Trading Signal API - 15m - LightGBM + PPO"
-  description: "API para sinais de trading 15 minutos baseados em LightGBM + PPO"
+  port: 8001
+  title: "Forex Trading Signal API - 15m - LightGBM"
+  description: "API para sinais de trading 15 minutos baseados em LightGBM"
   version: "1.0.0"

@@ -1,0 +1,16 @@
+feature,importance
+ema_fast,36
+ema_slow,28
+price_ema_fast_dist,24
+ema_cross_pct,6
+body_pct,3
+range_pct,1
+lower_shadow,1
+range,0
+body,0
+upper_shadow,0
+is_bullish,0
+ema_cross,0
+ema_cross_signal,0
+price_ema_slow_dist,0
+signal_convergence,0
