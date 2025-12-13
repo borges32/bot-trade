@@ -1,0 +1,143 @@
+================================================================================
+RELATÓRIO DE OTIMIZAÇÃO - USDJPY 30m
+Data: 2025-12-13 16:09:40
+================================================================================
+
+MELHOR CONFIGURAÇÃO ENCONTRADA
+--------------------------------------------------------------------------------
+
+1. MÉTRICAS DE PERFORMANCE (Test Set)
+
+   Score Combinado: 0.454902
+   - Quanto menor, melhor (combina RMSE e erro de direção)
+
+   RMSE (Root Mean Square Error): 0.006090
+   - Erro médio quadrático das previsões de preço
+   - Quanto menor, mais preciso é o modelo
+
+   MAE (Mean Absolute Error): 0.004386
+   - Erro médio absoluto das previsões
+   - Interpretação: em média, previsões erram por 0.004386 pips
+
+   R² (Coeficiente de Determinação): 0.003932
+   - Explica 0.39% da variância dos preços
+   - Valores próximos de 1 são melhores
+
+   Acurácia Direcional: 0.5512 (55.12%)
+   - Percentual de vezes que prevê corretamente se o preço vai subir ou descer
+   - Crucial para trading: acima de 50% indica poder preditivo
+
+2. FEATURES/INDICADORES TÉCNICOS ATIVADOS
+
+   ✓ ATIVO         RSI (Relative Strength Index)                 - Identifica condições de sobrecompra/sobrevenda
+   ✓ ATIVO         EMA (Exponential Moving Average)              - Suaviza tendências de preço
+   ✓ ATIVO         MACD (Moving Average Convergence Divergence)  - Detecta mudanças de momentum
+   ✗ Desativado    Stochastic Oscillator                         - Mede momentum comparando preço de fechamento com range
+   ✗ Desativado    ADX (Average Directional Index)               - Mede força da tendência
+   ✗ Desativado    CCI (Commodity Channel Index)                 - Identifica níveis cíclicos
+   ✗ Desativado    Williams %R                                   - Oscilador de momentum para sobrecompra/sobrevenda
+   ✗ Desativado    ROC (Rate of Change)                          - Velocidade de mudança de preço
+   ✗ Desativado    OBV (On-Balance Volume)                       - Relaciona volume com movimento de preço
+   ✗ Desativado    MFI (Money Flow Index)                        - RSI ponderado por volume
+   ✓ ATIVO         Bollinger Bands                               - Bandas de volatilidade
+   ✓ ATIVO         ATR (Average True Range)                      - Mede volatilidade do mercado
+
+3. HIPERPARÂMETROS DO LIGHTGBM
+
+   Prediction Horizon: 16
+   - Quantos candles à frente o modelo prevê
+   - Valor 16 = prevê 480 minutos à frente
+
+   Learning Rate: 0.03
+   - Taxa de aprendizado do modelo
+   - Valores menores = aprendizado mais lento mas estável
+
+   Num Leaves: 31
+   - Número máximo de folhas nas árvores
+   - Controla complexidade: mais folhas = modelo mais complexo
+
+   Max Depth: 8
+   - Profundidade máxima das árvores
+   - Limita crescimento para evitar overfitting
+
+   N Estimators: 300
+   - Número de árvores no ensemble
+   - Mais árvores = modelo mais robusto (até certo ponto)
+
+   Min Child Samples: 20
+   - Mínimo de amostras para criar uma folha
+   - Previne overfitting em regiões com poucos dados
+
+   Subsample: 0.7
+   - Fração de dados usada para treinar cada árvore
+   - Adiciona randomização para melhorar generalização
+
+   Colsample Bytree: 0.9
+   - Fração de features usadas em cada árvore
+   - Reduz correlação entre árvores
+
+   Reg Alpha: 0.5
+   - Regularização L1 (Lasso)
+   - Penaliza features menos importantes
+
+   Reg Lambda: 0.3
+   - Regularização L2 (Ridge)
+   - Suaviza pesos para evitar overfitting
+
+================================================================================
+TOP 5 MELHORES CONFIGURAÇÕES
+================================================================================
+
+#1 - Score: 0.454902
+   Métricas: RMSE=0.006090, MAE=0.004386, R²=0.003932, Dir Acc=0.5512
+   Features: RSI=True, EMA=True, MACD=True, Bollinger=True, ATR=True
+   Hiperparâmetros: LR=0.03, Leaves=31, Depth=8, N_Est=300
+   Horizon=16, Subsample=0.7, Colsample=0.9
+
+#2 - Score: 0.455318
+   Métricas: RMSE=0.006096, MAE=0.004382, R²=0.001829, Dir Acc=0.5508
+   Features: RSI=True, EMA=False, MACD=False, Bollinger=True, ATR=True
+   Hiperparâmetros: LR=0.03, Leaves=70, Depth=8, N_Est=300
+   Horizon=16, Subsample=0.7, Colsample=0.9
+
+#3 - Score: 0.458991
+   Métricas: RMSE=0.006083, MAE=0.004373, R²=0.006043, Dir Acc=0.5471
+   Features: RSI=False, EMA=True, MACD=True, Bollinger=False, ATR=True
+   Hiperparâmetros: LR=0.03, Leaves=31, Depth=4, N_Est=500
+   Horizon=16, Subsample=0.8, Colsample=0.9
+
+#4 - Score: 0.459777
+   Métricas: RMSE=0.006051, MAE=0.004373, R²=0.016690, Dir Acc=0.5463
+   Features: RSI=False, EMA=True, MACD=True, Bollinger=False, ATR=True
+   Hiperparâmetros: LR=0.01, Leaves=50, Depth=8, N_Est=500
+   Horizon=16, Subsample=0.9, Colsample=0.7
+
+#5 - Score: 0.459790
+   Métricas: RMSE=0.006063, MAE=0.004364, R²=0.012525, Dir Acc=0.5463
+   Features: RSI=True, EMA=True, MACD=True, Bollinger=False, ATR=False
+   Hiperparâmetros: LR=0.03, Leaves=50, Depth=8, N_Est=500
+   Horizon=16, Subsample=0.7, Colsample=0.7
+
+================================================================================
+INTERPRETAÇÃO E RECOMENDAÇÕES
+================================================================================
+
+COMO USAR ESTA CONFIGURAÇÃO:
+
+1. O arquivo 'best_config.yaml' já foi gerado com estes parâmetros
+2. Use-o para treinar o modelo final: python -m src.rl.train --config best_config.yaml
+3. A acurácia direcional é o principal indicador para trading
+4. Valores acima de 55% de acurácia direcional já são úteis em produção
+
+PRÓXIMOS PASSOS:
+
+1. Treinar modelo completo com a melhor configuração
+2. Fazer backtesting em dados out-of-sample
+3. Validar performance em diferentes condições de mercado
+4. Monitorar drift: performance pode degradar ao longo do tempo
+5. Considerar re-treinamento periódico (ex: mensal)
+
+✓ EXCELENTE: Acurácia direcional acima de 55%
+   - Modelo demonstra bom poder preditivo
+   - Adequado para uso em trading com gestão de risco apropriada
+
