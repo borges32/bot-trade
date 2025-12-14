@@ -47,6 +47,7 @@ def example_single_prediction():
     # 5. Faz a predição
     result = predictor.predict(recent_candles)
     
+    
     # 6. Exibe resultado
     print(f"\n📊 Resultado da Predição:")
     print(f"  🎯 Sinal: {result['signal']}")
