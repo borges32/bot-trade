@@ -10,11 +10,37 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import logging
+import os
 
 from src.models.lightgbm_model import LightGBMPredictor
 from src.common.features_optimized import OptimizedFeatureEngineer
 
 logger = logging.getLogger(__name__)
+
+# Redis client (opcional)
+_redis_client = None
+
+def get_redis_client():
+    """Obtém cliente Redis se disponível."""
+    global _redis_client
+    if _redis_client is None:
+        try:
+            import redis
+            redis_host = os.getenv('REDIS_HOST', 'localhost')
+            redis_port = int(os.getenv('REDIS_PORT', 6379))
+            _redis_client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                decode_responses=True,
+                socket_connect_timeout=2
+            )
+            # Testa conexão
+            _redis_client.ping()
+            logger.info(f"Redis conectado em {redis_host}:{redis_port}")
+        except Exception as e:
+            logger.warning(f"Redis não disponível: {e}")
+            _redis_client = None
+    return _redis_client
 
 
 class TradingPredictor:
@@ -27,7 +53,8 @@ class TradingPredictor:
     def __init__(
         self,
         lightgbm_path: str,
-        config: Dict
+        config: Dict,
+        enable_redis: bool = True
     ):
         """
         Inicializa o preditor.
@@ -35,8 +62,10 @@ class TradingPredictor:
         Args:
             lightgbm_path: Caminho do modelo LightGBM
             config: Configuração completa
+            enable_redis: Se True, salva predições no Redis
         """
         self.config = config
+        self.enable_redis = enable_redis
         
         # Carrega LightGBM
         logger.info(f"Loading LightGBM model from {lightgbm_path}")
@@ -49,7 +78,22 @@ class TradingPredictor:
         # Thresholds para decisão
         self.min_confidence = config.get('inference', {}).get('min_confidence', 0.60)
         
-        logger.info("TradingPredictor initialized successfully")
+        # Tenta carregar test_direction_acc dos metadados
+        try:
+            import joblib
+            metadata_path = Path(lightgbm_path).with_suffix('.metadata.pkl')
+            if metadata_path.exists():
+                metadata = joblib.load(metadata_path)
+                test_metrics = metadata.get('test_metrics', {})
+                self.test_direction_acc = test_metrics.get('direction_accuracy', 0.55)
+            else:
+                self.test_direction_acc = 0.55
+        except Exception as e:
+            logger.warning(f"Could not load test metrics: {e}")
+            self.test_direction_acc = 0.55
+        
+        logger.info(f"TradingPredictor initialized successfully")
+        logger.info(f"Model test direction accuracy: {self.test_direction_acc:.2%}")
     
     def prepare_features(self, candles: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
         """
@@ -113,9 +157,15 @@ class TradingPredictor:
         features_dict = {col: last_row[col] for col in feature_columns}
         predicted_return = self.lightgbm.predict_single(features_dict)
         
-        # Calcula confiança baseada na magnitude do retorno
-        # Usa escala melhor para forex (movimentos típicos 0.1-1%)
-        confidence = min(abs(predicted_return) * 500, 1.0)  # 0.002 return = 100% confidence
+        # Calcula confiança ajustada
+        # Base accuracy (do histórico de teste)
+        base_accuracy = self.test_direction_acc
+        
+        # Magnitude do retorno (quanto maior, mais confiante)
+        magnitude_factor = min(abs(predicted_return) * 100, 1.0)
+        
+        # Confiança ajustada = base × magnitude
+        confidence = base_accuracy * magnitude_factor
         
         # Determina sinal
         if confidence >= self.min_confidence:
@@ -130,10 +180,38 @@ class TradingPredictor:
             'signal': signal,
             'predicted_return': float(predicted_return),
             'confidence': float(confidence),
+            'base_accuracy': float(base_accuracy),
             'current_price': float(current_price)
         }
         
+        # Salva no Redis se habilitado
+        if self.enable_redis:
+            self._save_to_redis(result)
+        
         return result
+    
+    def _save_to_redis(self, result: Dict):
+        """
+        Salva resultado da predição no Redis.
+        
+        Args:
+            result: Dicionário com resultado da predição
+        """
+        try:
+            redis_client = get_redis_client()
+            if redis_client is not None:
+                import json
+                from datetime import datetime
+                
+                # Adiciona timestamp
+                result_with_timestamp = result.copy()
+                result_with_timestamp['timestamp'] = datetime.utcnow().isoformat()
+                
+                # Salva no Redis (sobrescreve anterior)
+                redis_client.set('latest_prediction', json.dumps(result_with_timestamp))
+                logger.debug(f"Prediction saved to Redis: {result['signal']}")
+        except Exception as e:
+            logger.warning(f"Failed to save to Redis: {e}")
     
     def predict_from_recent_data(
         self,

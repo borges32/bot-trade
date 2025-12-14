@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forex Trading Predictor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .prediction-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .prediction-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: var(--signal-color, #667eea);
+        }
+
+        .signal-badge {
+            display: inline-block;
+            padding: 10px 30px;
+            border-radius: 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .signal-BUY {
+            background: #10b981;
+            color: white;
+            --signal-color: #10b981;
+        }
+
+        .signal-SELL {
+            background: #ef4444;
+            color: white;
+            --signal-color: #ef4444;
+        }
+
+        .signal-NEUTRAL {
+            background: #6b7280;
+            color: white;
+            --signal-color: #6b7280;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .metric {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            color: #333;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .metric-unit {
+            font-size: 0.6em;
+            color: #999;
+            margin-left: 5px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #f88;
+            padding: 20px;
+            border-radius: 10px;
+            color: #c33;
+            text-align: center;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
+        .icon {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading::after {
+            content: '...';
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Forex Trading Predictor</h1>
+            <p>Predições em Tempo Real com LightGBM</p>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <p>Carregando predição</p>
+            </div>
+        </div>
+
+        <button class="refresh-btn" onclick="loadPrediction()">
+            <span class="icon">🔄</span> Atualizar Predição
+        </button>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        async function loadPrediction() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading"><p>Carregando predição</p></div>';
+
+            try {
+                const response = await fetch(`${API_URL}/api/prediction/latest`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Nenhuma predição disponível. Execute uma predição primeiro.');
+                    }
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayPrediction(data);
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Erro ao carregar predição</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayPrediction(data) {
+            const content = document.getElementById('content');
+            
+            const signalClass = `signal-${data.signal}`;
+            const signalEmoji = data.signal === 'BUY' ? '🟢' : data.signal === 'SELL' ? '🔴' : '⚪';
+            
+            const returnPercent = (data.predicted_return * 100).toFixed(4);
+            const returnBps = (data.predicted_return * 10000).toFixed(2);
+            const confidencePercent = (data.confidence * 100).toFixed(1);
+            const baseAccPercent = ((data.base_accuracy || data.confidence) * 100).toFixed(1);
+            const signalStrength = data.base_accuracy > 0 ? 
+                ((data.confidence / data.base_accuracy) * 100).toFixed(0) : 100;
+
+            content.innerHTML = `
+                <div class="prediction-card ${signalClass}">
+                    <div class="signal-badge ${signalClass}">
+                        ${signalEmoji} ${data.signal}
+                    </div>
+
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-label">📈 Retorno Previsto</div>
+                            <div class="metric-value">
+                                ${returnPercent > 0 ? '+' : ''}${returnPercent}
+                                <span class="metric-unit">%</span>
+                            </div>
+                            <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                                ${returnBps} basis points
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">🎯 Acurácia Base</div>
+                            <div class="metric-value">
+                                ${baseAccPercent}
+                                <span class="metric-unit">%</span>
+                            </div>
+                            <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                                Histórico do modelo
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">💯 Confiança Ajustada</div>
+                            <div class="metric-value">
+                                ${confidencePercent}
+                                <span class="metric-unit">%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${confidencePercent}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">⚡ Força do Sinal</div>
+                            <div class="metric-value">
+                                ${signalStrength}
+                                <span class="metric-unit">%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${Math.min(signalStrength, 100)}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">💰 Preço Atual</div>
+                            <div class="metric-value">
+                                ${data.current_price.toFixed(5)}
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">📊 Interpretação</div>
+                            <div style="font-size: 0.9em; color: #333; margin-top: 10px; line-height: 1.6;">
+                                ${getInterpretation(data)}
+                            </div>
+                        </div>
+                    </div>
+
+                    ${data.timestamp ? `
+                        <div class="timestamp">
+                            ⏰ Última atualização: ${new Date(data.timestamp).toLocaleString('pt-BR')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function getInterpretation(data) {
+            const returnPercent = (data.predicted_return * 100).toFixed(2);
+            
+            if (data.signal === 'BUY') {
+                return `✅ <strong>COMPRAR</strong> - Modelo prevê alta de ~${returnPercent}% com ${(data.base_accuracy * 100).toFixed(1)}% de probabilidade de acerto.`;
+            } else if (data.signal === 'SELL') {
+                return `❌ <strong>VENDER</strong> - Modelo prevê queda de ~${Math.abs(returnPercent)}% com ${(data.base_accuracy * 100).toFixed(1)}% de probabilidade de acerto.`;
+            } else {
+                return `⏸️ <strong>NEUTRO</strong> - Confiança insuficiente. Acurácia base é ${(data.base_accuracy * 100).toFixed(1)}%, mas retorno previsto muito pequeno.`;
+            }
+        }
+
+        // Auto-refresh a cada 10 segundos
+        setInterval(loadPrediction, 10000);
+
+        // Carrega ao iniciar
+        loadPrediction();
+    </script>
+</body>
+</html>

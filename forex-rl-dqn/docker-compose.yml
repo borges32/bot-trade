@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: forex-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   api:
     build:
       context: .
@@ -11,10 +26,16 @@ services:
     volumes:
       - ./artifacts:/app/artifacts:ro
       - ./data:/app/data
+      - ./models:/app/models:ro
+      - ./config_30m_optimized.yaml:/app/config_30m_optimized.yaml:ro
     environment:
       - ARTIFACTS_DIR=/app/artifacts
       - DATA_DIR=/app/data
       - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -22,3 +43,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: forex-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    environment:
+      - API_URL=http://localhost:8000
+
+volumes:
+  redis_data:
