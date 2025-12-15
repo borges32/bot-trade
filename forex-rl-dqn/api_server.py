@@ -18,10 +18,22 @@ from pathlib import Path
 import csv
 import numpy as np
 
-from src.inference.predictor import TradingPredictor
-
+# Configure logging first
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+from src.inference.predictor import TradingPredictor
+
+# Optional DQN imports (only if torch is available)
+try:
+    import torch
+    from src.rl.agent import DQNAgent
+    from src.common.features import FeatureScaler, generate_features
+    from src.common.utils import get_device
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    logger.warning("PyTorch not available. DQN endpoints will be disabled.")
 
 app = FastAPI(
     title="Forex Trading API - Completa",
@@ -104,12 +116,11 @@ def load_dqn_model_artifacts(
     """Carrega modelo DQN, scaler e config."""
     global dqn_model_state
     
+    if not TORCH_AVAILABLE:
+        raise ImportError("PyTorch not available. Cannot load DQN model.")
+    
     if dqn_model_state["loaded"]:
         return
-    
-    from src.common.features import FeatureScaler
-    from src.common.utils import get_device
-    from src.rl.agent import DQNAgent
     
     # Check if files exist
     model_path_obj = Path(model_path)
@@ -297,7 +308,7 @@ async def health_check():
         status="healthy",
         redis=redis_status,
         lightgbm_loaded=predictor is not None,
-        dqn_loaded=dqn_model_state["loaded"]
+        dqn_loaded=dqn_model_state["loaded"] if TORCH_AVAILABLE else False
     )
 
 
@@ -554,11 +565,19 @@ async def predict_action(request: ActRequest):
     Returns:
         Ação prevista (buy, sell, hold) com confiança
     """
+    if not TORCH_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="PyTorch não disponível. Instale torch para usar endpoints DQN."
+        )
+    
     if not dqn_model_state["loaded"]:
         try:
             load_dqn_model_artifacts()
         except FileNotFoundError as e:
             raise HTTPException(status_code=503, detail=f"DQN Model não disponível: {e}")
+        except ImportError as e:
+            raise HTTPException(status_code=503, detail=str(e))
     
     window_size = dqn_model_state["config"]["env"]["window_size"]
     if len(request.window) != window_size:
@@ -626,6 +645,7 @@ async def ingest_historical_data(
     Returns:
         Status da ingestão com registros salvos e caminho do arquivo
     """
+    # Este endpoint não precisa de PyTorch, apenas salva dados
     try:
         if not data:
             raise HTTPException(status_code=400, detail="Lista de dados vazia")
