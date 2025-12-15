@@ -1,129 +1,91 @@
-# Configuração LightGBM para Trading Forex - TIMEFRAME 30 MINUTOS
-# =================================================================
-# Períodos de indicadores otimizados para timeframe de 30 minutos
-# Em 30m, 1 dia = 48 candles, 1 semana = 336 candles
-
-# Configurações Gerais
 general:
   seed: 42
   verbose: true
-  log_dir: "logs/hybrid_30m"
-  models_dir: "models/hybrid_30m"
-  timeframe: "30m"
-  
-# Dados
+  log_dir: logs/hybrid_30m
+  models_dir: models/hybrid_30m
+  timeframe: 30m
 data:
-  train_file: "data/usdjpy_history_30m.csv"  # Arquivo de treino 30m
-  val_split: 0.15  # 15% para validação
-  test_split: 0.15  # 15% para teste
-  
-  # Colunas OBRIGATÓRIAS no CSV (OHLCV)
-  timestamp_col: "timestamp"
-  open_col: "open"
-  high_col: "high"
-  low_col: "low"
-  close_col: "close"
-  volume_col: "volume"
-  
-  # Janela de lookback para features
-  # 30m: 48 candles = 1 dia de trading
-  lookback_window: 72  # 1.5 dias
-  
-# Features Técnicas - OTIMIZADO PARA 30 MINUTOS
+  train_file: data/usdjpy_history_30m.csv
+  val_split: 0.15
+  test_split: 0.15
+  timestamp_col: timestamp
+  open_col: open
+  high_col: high
+  low_col: low
+  close_col: close
+  volume_col: volume
+  lookback_window: 72
 features:
-  # === INDICADORES PRINCIPAIS (sempre calculados do zero) ===
-  
-  # RSI - Período padrão ajustado
   use_rsi: true
-  rsi_period: 14  # 30m: 14 períodos = 7 horas
-  
-  # EMAs - Períodos clássicos ajustados para 30m
+  rsi_period: 14
   use_ema: true
-  ema_periods: [12, 26, 50]  # 12=6h, 26=13h, 50=25h
-  ema_fast: 12  # Rápida: 6 horas
-  ema_slow: 26  # Lenta: 13 horas
-  
-  # MACD - Configuração clássica
+  ema_periods:
+  - 12
+  - 26
+  - 50
+  ema_fast: 12
+  ema_slow: 26
   use_macd: true
-  macd_fast: 12  # 6 horas
-  macd_slow: 26  # 13 horas
-  macd_signal: 9  # 4.5 horas
-  
-  # Bollinger Bands - Período padrão
-  use_bollinger: true
-  bb_period: 20  # 10 horas
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  use_bollinger: false
+  bb_period: 20
   bb_std: 2.0
-  
-  # ATR - Volatilidade padrão
-  use_atr: true
-  atr_period: 14  # 7 horas
-  
-  # Momentum - Períodos médios
+  use_atr: false
+  atr_period: 14
   use_momentum: true
-  momentum_periods: [10, 20]  # 10=5h, 20=10h
-  
-  # SMAs - Períodos padrão
+  momentum_periods:
+  - 10
+  - 20
   use_sma: true
-  sma_periods: [20, 50]  # 20=10h, 50=25h
-  
-  # Stochastic - Padrão
+  sma_periods:
+  - 20
+  - 50
   use_stochastic: true
-  stoch_k: 14  # 7 horas
+  stoch_k: 14
   stoch_d: 3
-  
-  # ADX - Força de tendência
   use_adx: true
-  adx_period: 14  # 7 horas
-  
-  # Volatilidade - Janela média
+  adx_period: 14
   use_volatility: true
-  volatility_window: 20  # 10 horas
-  
-  # Volume - Médias móveis
+  volatility_window: 20
   use_volume_features: true
-  volume_ma_period: 20  # 10 horas
-  
-  # Retornos multi-período
+  volume_ma_period: 20
   use_returns: true
-  return_periods: [1, 3, 6, 12, 24]  # 30m, 1.5h, 3h, 6h, 12h
-
-# LightGBM - Modelo Supervisionado
+  return_periods:
+  - 1
+  - 3
+  - 6
+  - 12
+  - 24
 lightgbm:
-  model_type: "regressor"  # MUDOU: regressor em vez de classifier
-  
-  # Target: prever retorno percentual N candles à frente
-  prediction_horizon: 10  # 10 candles = 5 horas à frente (30m)
-  
+  model_type: regressor
+  prediction_horizon: 16
   params:
-    objective: "regression"  # regression para prever retorno contínuo
-    metric: "rmse"  # RMSE para regressão (menor é melhor)
-    boosting_type: "gbdt"
-    num_leaves: 31
-    max_depth: 6
-    learning_rate: 0.05
+    objective: regression
+    metric: rmse
+    boosting_type: gbdt
+    num_leaves: 50
+    max_depth: 4
+    learning_rate: 0.03
     n_estimators: 500
     min_child_samples: 20
-    subsample: 0.8
+    subsample: 0.9
     subsample_freq: 1
-    colsample_bytree: 0.8
-    reg_alpha: 0.3  # Aumentado para regressão (evita overfitting)
-    reg_lambda: 0.3  # Aumentado para regressão
+    colsample_bytree: 0.9
+    reg_alpha: 0.5
+    reg_lambda: 0.5
     random_state: 42
     n_jobs: -1
     verbose: -1
-    
   early_stopping_rounds: 50
   save_feature_importance: true
-
-# Inferência
 inference:
-  lightgbm_model_path: "models/hybrid_30m/lightgbm_model.txt"
-  min_confidence: 0.05  # 5% - threshold realista para forex (movimentos pequenos)
-  
-# API
+  lightgbm_model_path: models/hybrid_30m/lightgbm_model.txt
+  min_confidence: 0.05
 api:
-  host: "0.0.0.0"
+  host: 0.0.0.0
   port: 8000
-  title: "Forex Trading Signal API - 30m - LightGBM"
-  description: "API para sinais de trading 30 minutos baseados em LightGBM"
-  version: "1.0.0"
+  title: Forex Trading Signal API - 30m - LightGBM
+  description: API para sinais de trading 30 minutos baseados em LightGBM
+  version: 1.0.0

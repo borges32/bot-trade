@@ -1,0 +1,159 @@
+tree
+version=v4
+num_class=1
+num_tree_per_iteration=1
+label_index=0
+max_feature_idx=54
+objective=regression
+feature_names=ema_fast ema_slow macd macd_signal atr momentum_10 momentum_20 volatility volume_ma range range_pct body body_pct upper_shadow lower_shadow is_bullish return_1 return_3 return_6 return_12 return_24 log_return ema_cross ema_cross_pct ema_cross_signal price_ema_fast_dist price_ema_slow_dist macd_hist macd_hist_change macd_cross_signal macd_strength atr_normalized atr_ma atr_ratio momentum_ratio momentum_convergence volume_ratio volume_spike volume_change volatility_ma volatility_ratio high_volatility low_volatility stoch_k stoch_d stoch_overbought stoch_oversold adx strong_trend sma_20 price_sma_20_dist sma_50 price_sma_50_dist signal_convergence market_regime
+feature_infos=[16221.460477967343:22195.420446942684] [16239.993743061475:22183.497877056925] [-401.79307035902457:574.44218261259448] [-349.45166956260863:503.44731487822173] [0:416.8899999999997] [-1136.3299999999981:2041.25] [-1492.3600000000006:2391.5300000000025] [0:0.014853398867608843] [0:18712.200000000001] [0:1362.5300000000025] [0:0.074722026471580341] [0:864.88000000000102] [0:0.047430578596244014] [0:990.12000000000262] [0:265.25] [0:1] [-0.045174245084269593:0.049905285037338931] [-0.048101045054701363:0.086898819085784673] [-0.061847842605140535:0.099918239971441558] [-0.069266784019653138:0.12466460594935413] [-0.10307623393468524:0.13529494076771242] [-0.046226410734074706:0.048699955374397121] [-401.79307035902457:574.44218261259448] [-0.024248253187935324:0.029941350879806313] [0:1] [-0.050407460627379774:0.062606981097555275] [-0.068259907944047085:0.077643593190519999] [-99.055562789104499:203.06273269795861] [-45.174823638776047:60.217746146399293] [0:1] [-92.613048941831764:197.38007783254926] [0:0.024148175694501142] [0:339.85485714285699] [0:3.2790940618972764] [-5670000000.0000725:10050000000] [-2041.25:1136.3299999999981] [0:6.0856248751311206] [0:1] [-0.99980506822612081:2776] [0:0.014083508988507099] [0:4.7739267325055099] [0:1] [0:1] [0:99.999999998465086] [0:99.679439429295329] [0:1] [0:1] [0:97.291675599848531] [0:1] [0:22190.644999999997] [-0.065043780517382327:0.081969259130748082] [0:22163.835999999999] [-0.093182420536107813:0.10000952626628214] [0:2] [0:2]
+tree_sizes=1159
+
+Tree=0
+num_leaves=11
+num_cat=0
+split_feature=32 49 47 1 0 3 51 51 32 36
+split_gain=0.023693 0.0391472 0.00342434 0.00285093 0.00184781 0.00358325 0.00207456 0.00183924 0.00248911 0.000565077
+threshold=166.99826785714311 17195.661250000001 31.689034121024967 18068.994412913493 18532.801853268491 -25.721263750562965 21477.243000000002 17966.879500000006 88.724196428571346 0.22932284093656638
+decision_type=2 2 2 2 2 2 2 2 2 2
+left_child=3 2 -2 7 5 -5 -6 8 -1 -9
+right_child=1 -3 -4 4 6 -7 -8 9 -10 -11
+leaf_value=0.00022946342455626065 0.0016705374890741683 0.00021562289633077103 0.00021562289633077103 5.1019019623411207e-05 0.00021562289633077103 0.00020715528391354105 0.00017080278994412702 0.00021562289633077103 -5.0669951993781995e-05 0.00031057618430562742
+leaf_weight=2204 28 96 26 222 7533 1053 1035 45 26 381
+leaf_count=2204 28 96 26 222 7533 1053 1035 45 26 381
+internal_value=0.000215623 0.000591149 0.00123665 0.000212083 0.000203623 0.000168195 0.000210646 0.000237789 0.000219459 0.000298511
+internal_weight=0 150 54 12499 9843 1275 8568 2656 2230 426
+internal_count=12649 150 54 12499 9843 1275 8568 2656 2230 426
+is_linear=0
+shrinkage=1
+
+
+end of trees
+
+feature_importances:
+atr_ma=2
+sma_50=2
+ema_fast=1
+ema_slow=1
+macd_signal=1
+volume_ratio=1
+adx=1
+sma_20=1
+
+parameters:
+[boosting: gbdt]
+[objective: regression]
+[metric: rmse]
+[tree_learner: serial]
+[device_type: cpu]
+[data: ]
+[valid: ]
+[num_iterations: 500]
+[learning_rate: 0.03]
+[num_leaves: 16]
+[num_threads: 8]
+[deterministic: 0]
+[force_col_wise: 0]
+[force_row_wise: 0]
+[histogram_pool_size: -1]
+[max_depth: 4]
+[min_data_in_leaf: 20]
+[min_sum_hessian_in_leaf: 0.001]
+[bagging_fraction: 0.8]
+[pos_bagging_fraction: 1]
+[neg_bagging_fraction: 1]
+[bagging_freq: 1]
+[bagging_seed: 400]
+[feature_fraction: 0.9]
+[feature_fraction_bynode: 1]
+[feature_fraction_seed: 30056]
+[extra_trees: 0]
+[extra_seed: 12879]
+[early_stopping_round: 0]
+[first_metric_only: 0]
+[max_delta_step: 0]
+[lambda_l1: 0.5]
+[lambda_l2: 0.1]
+[linear_lambda: 0]
+[min_gain_to_split: 0]
+[drop_rate: 0.1]
+[max_drop: 50]
+[skip_drop: 0.5]
+[xgboost_dart_mode: 0]
+[uniform_drop: 0]
+[drop_seed: 17869]
+[top_rate: 0.2]
+[other_rate: 0.1]
+[min_data_per_group: 100]
+[max_cat_threshold: 32]
+[cat_l2: 10]
+[cat_smooth: 10]
+[max_cat_to_onehot: 4]
+[top_k: 20]
+[monotone_constraints: ]
+[monotone_constraints_method: basic]
+[monotone_penalty: 0]
+[feature_contri: ]
+[forcedsplits_filename: ]
+[refit_decay_rate: 0.9]
+[cegb_tradeoff: 1]
+[cegb_penalty_split: 0]
+[cegb_penalty_feature_lazy: ]
+[cegb_penalty_feature_coupled: ]
+[path_smooth: 0]
+[interaction_constraints: ]
+[verbosity: 1]
+[saved_feature_importance_type: 0]
+[linear_tree: 0]
+[max_bin: 255]
+[max_bin_by_feature: ]
+[min_data_in_bin: 3]
+[bin_construct_sample_cnt: 200000]
+[data_random_seed: 175]
+[is_enable_sparse: 1]
+[enable_bundle: 1]
+[use_missing: 1]
+[zero_as_missing: 0]
+[feature_pre_filter: 1]
+[pre_partition: 0]
+[two_round: 0]
+[header: 0]
+[label_column: ]
+[weight_column: ]
+[group_column: ]
+[ignore_column: ]
+[categorical_feature: ]
+[forcedbins_filename: ]
+[precise_float_parser: 0]
+[parser_config_file: ]
+[objective_seed: 16083]
+[num_class: 1]
+[is_unbalance: 0]
+[scale_pos_weight: 1]
+[sigmoid: 1]
+[boost_from_average: 1]
+[reg_sqrt: 0]
+[alpha: 0.9]
+[fair_c: 1]
+[poisson_max_delta_step: 0.7]
+[tweedie_variance_power: 1.5]
+[lambdarank_truncation_level: 30]
+[lambdarank_norm: 1]
+[label_gain: ]
+[lambdarank_position_bias_regularization: 0]
+[eval_at: ]
+[multi_error_top_k: 1]
+[auc_mu_weights: ]
+[num_machines: 1]
+[local_listen_port: 12400]
+[time_out: 120]
+[machine_list_filename: ]
+[machines: ]
+[gpu_platform_id: -1]
+[gpu_device_id: -1]
+[gpu_use_dp: 0]
+[num_gpu: 1]
+
+end of parameters
+
+pandas_categorical:[]

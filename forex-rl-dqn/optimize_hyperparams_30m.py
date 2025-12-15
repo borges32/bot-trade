@@ -57,6 +57,8 @@ class HyperparameterOptimizer:
         
         self.results = []
         self.best_result = None
+        self.best_config = None
+        self.best_config_path = None
         
     def define_search_space(self):
         """
@@ -185,7 +187,7 @@ class HyperparameterOptimizer:
         
         return config
     
-    def evaluate_combination(self, combination: dict, index: int, total: int) -> dict:
+    def evaluate_combination(self, combination: dict, index: int, total: int) -> tuple:
         """
         Treina e avalia uma combinação de hiperparâmetros.
         
@@ -195,7 +197,7 @@ class HyperparameterOptimizer:
             total: Total de combinações
             
         Returns:
-            Dict com resultados
+            Tuple (resultado, config_gerada)
         """
         logger.info(f"\n{'='*80}")
         logger.info(f"TESTANDO COMBINAÇÃO {index+1}/{total}")
@@ -267,13 +269,13 @@ class HyperparameterOptimizer:
             logger.info(f"   Test Direction Acc: {eval_result['test_direction_acc']:.4f}")
             logger.info(f"   Combined Score: {eval_result['combined_score']:.6f}")
             
-            return eval_result
+            return eval_result, config
             
         except Exception as e:
             logger.error(f"❌ ERRO ao treinar combinação {index}: {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return None
+            return None, None
             
         finally:
             # Remove config temporário
@@ -305,7 +307,7 @@ class HyperparameterOptimizer:
             logger.info(f"Sucessos: {successful}, Falhas: {failed}")
             logger.info(f"{'='*80}")
             
-            result = self.evaluate_combination(combination, i, len(combinations))
+            result, config = self.evaluate_combination(combination, i, len(combinations))
             
             if result is not None:
                 self.results.append(result)
@@ -314,6 +316,7 @@ class HyperparameterOptimizer:
                 # Atualiza melhor resultado
                 if self.best_result is None or result['combined_score'] < self.best_result['combined_score']:
                     self.best_result = result
+                    self.best_config = config
                     logger.info(f"🏆 NOVO MELHOR RESULTADO! Score: {result['combined_score']:.6f}")
             else:
                 failed += 1
@@ -336,6 +339,9 @@ class HyperparameterOptimizer:
         
         # Mostra resumo
         self.print_summary()
+
+        # Treina modelo final com a melhor configuração
+        self.train_best_model()
     
     def save_results(self):
         """Salva resultados em CSV e JSON."""
@@ -354,6 +360,37 @@ class HyperparameterOptimizer:
             with open(json_path, 'w') as f:
                 json.dump(self.best_result, f, indent=2)
             logger.info(f"🏆 Melhor config salvo em: {json_path}")
+
+            # YAML com a configuração completa do melhor modelo
+            if self.best_config:
+                best_config_path = self.output_dir / "best_config.yaml"
+                self.best_config_path = best_config_path
+                with open(best_config_path, 'w') as f:
+                    yaml.safe_dump(self.best_config, f, sort_keys=False)
+                logger.info(f"📄 Configuração YAML salva em: {best_config_path}")
+
+    def train_best_model(self):
+        """Treina o modelo final usando a melhor configuração encontrada."""
+        if not self.best_config:
+            logger.warning("Nenhuma melhor configuração disponível para treino final.")
+            return
+
+        # Garante que o best_config.yaml existe
+        if not self.best_config_path:
+            self.best_config_path = self.output_dir / "best_config.yaml"
+            with open(self.best_config_path, 'w') as f:
+                yaml.safe_dump(self.best_config, f, sort_keys=False)
+            logger.info(f"📄 Configuração YAML criada em: {self.best_config_path}")
+
+        logger.info("🚀 Treinando modelo final com a melhor configuração...")
+        final_result = train_lightgbm(str(self.best_config_path))
+
+        # Salva métricas do treino final
+        final_metrics_path = self.output_dir / "best_model_metrics.json"
+        with open(final_metrics_path, 'w') as f:
+            json.dump(final_result, f, indent=2)
+        logger.info(f"✅ Treino final concluído. Métricas salvas em: {final_metrics_path}")
+        logger.info(f"📦 Modelo salvo em: {final_result.get('model_path')}")
     
     def print_summary(self):
         """Imprime resumo da otimização."""

@@ -50,6 +50,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Middleware para logar todas as requisições
+from fastapi import Request
+import time
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log todas as requisições recebidas."""
+    start_time = time.time()
+    
+    # Log da requisição
+    logger.info(f">>> REQUISIÇÃO RECEBIDA: {request.method} {request.url.path}")
+    logger.info(f">>> Headers: {dict(request.headers)}")
+    logger.info(f">>> Query params: {dict(request.query_params)}")
+    
+    # Processa a requisição
+    response = await call_next(request)
+    
+    # Log da resposta
+    process_time = time.time() - start_time
+    logger.info(f"<<< RESPOSTA: Status {response.status_code} | Tempo: {process_time:.3f}s")
+    
+    return response
+
 # Redis client
 redis_client = None
 
@@ -86,6 +109,25 @@ def get_predictor():
     if predictor is None:
         # Carrega configuração
         config_path = os.getenv('CONFIG_PATH', 'config_30m_optimized.yaml')
+        config_path_obj = Path(config_path)
+        
+        # Se for diretório, tenta encontrar um arquivo de config dentro
+        if config_path_obj.is_dir():
+            logger.warning(f"CONFIG_PATH aponta para diretório: {config_path_obj}")
+            candidate_files = [
+                config_path_obj / 'config.yaml',
+                config_path_obj / 'config_30m_optimized.yaml',
+            ]
+            existing = [c for c in candidate_files if c.exists() and c.is_file()]
+            if existing:
+                config_path_obj = existing[0]
+                logger.info(f"Usando config encontrado dentro do diretório: {config_path_obj}")
+            else:
+                raise FileNotFoundError(
+                    f"CONFIG_PATH é um diretório e nenhum arquivo de config foi encontrado em {candidate_files}"
+                )
+        
+        config_path = str(config_path_obj)
         model_path = os.getenv('MODEL_PATH', 'models/hybrid_30m/lightgbm_model.txt')
         
         if not Path(config_path).exists():
@@ -317,6 +359,7 @@ async def health_check():
 # ============================================================================
 
 @app.post("/api/prediction", response_model=PredictionResponse, tags=["LightGBM"])
+@app.post("/prediction", response_model=PredictionResponse, tags=["LightGBM"], include_in_schema=False)
 async def create_prediction(request: PredictionRequest):
     """
     Recebe candles do cTrader, faz predição LightGBM e salva no Redis.
@@ -348,9 +391,17 @@ async def create_prediction(request: PredictionRequest):
         }
         ```
     """
+    # Log de entrada ANTES de qualquer validação
+    logger.info("="*80)
+    logger.info("[API] Requisição recebida no endpoint /api/prediction")
+    logger.info(f"[API] Número de candles na requisição: {len(request.candles)}")
+    logger.info(f"[API] Current price: {request.current_price}")
+    logger.info("="*80)
+    
     try:
         # 1. Valida quantidade de candles
         if len(request.candles) < 50:
+            logger.warning(f"[VALIDAÇÃO] Mínimo de 50 candles necessários. Recebidos: {len(request.candles)}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Mínimo de 50 candles necessários. Recebidos: {len(request.candles)}"
@@ -403,6 +454,7 @@ async def create_prediction(request: PredictionRequest):
 
 
 @app.get("/api/prediction/latest", response_model=PredictionResponse, tags=["LightGBM"])
+@app.get("/prediction/latest", response_model=PredictionResponse, tags=["LightGBM"], include_in_schema=False)
 async def get_latest_prediction():
     """
     Retorna a última predição LightGBM armazenada no Redis.
@@ -438,6 +490,7 @@ async def get_latest_prediction():
 
 
 @app.delete("/api/prediction/latest", tags=["LightGBM"])
+@app.delete("/prediction/latest", tags=["LightGBM"], include_in_schema=False)
 async def delete_latest_prediction():
     """Remove a última predição do Redis."""
     try:
@@ -742,4 +795,15 @@ async def ingest_and_calculate_features(
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # Log de inicialização
+    logger.info("="*80)
+    logger.info("INICIANDO SERVIDOR API")
+    logger.info("="*80)
+    logger.info("Endpoints registrados:")
+    for route in app.routes:
+        if hasattr(route, 'methods') and hasattr(route, 'path'):
+            logger.info(f"  {list(route.methods)} {route.path}")
+    logger.info("="*80)
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
