@@ -163,7 +163,20 @@ class HyperparameterOptimizer:
         """
         config = deepcopy(self.base_config)  # Deep copy para não modificar original
         
-        # Atualiza features
+        # Lista de todas as features booleanas que podem ser configuradas
+        all_boolean_features = [
+            'use_rsi', 'use_ema', 'use_macd', 'use_bollinger', 'use_atr',
+            'use_momentum', 'use_sma', 'use_stochastic', 'use_adx',
+            'use_volatility', 'use_volume_features', 'use_returns'
+        ]
+        
+        # IMPORTANTE: Desativa TODAS as features booleanas primeiro
+        # Isso garante que apenas as features testadas estejam ativas
+        for feature_key in all_boolean_features:
+            if feature_key in config['features']:
+                config['features'][feature_key] = False
+        
+        # Atualiza apenas as features que estão sendo explicitamente testadas
         for key, value in combination['features'].items():
             if key in config['features']:
                 config['features'][key] = value
@@ -220,12 +233,26 @@ class HyperparameterOptimizer:
                 'combination_id': index,
                 'timestamp': datetime.now().isoformat(),
                 
-                # Features
+                # Features - TODAS as features testadas
                 'use_ema': combination['features'].get('use_ema', False),
                 'use_macd': combination['features'].get('use_macd', False),
                 'use_rsi': combination['features'].get('use_rsi', False),
                 'use_bollinger': combination['features'].get('use_bollinger', False),
                 'use_atr': combination['features'].get('use_atr', False),
+                
+                # Features adicionais (garantindo consistência com o config gerado)
+                'use_momentum': combination['features'].get('use_momentum', False),
+                'use_sma': combination['features'].get('use_sma', False),
+                'use_stochastic': combination['features'].get('use_stochastic', False),
+                'use_adx': combination['features'].get('use_adx', False),
+                'use_cci': combination['features'].get('use_cci', False),
+                'use_williams': combination['features'].get('use_williams', False),
+                'use_roc': combination['features'].get('use_roc', False),
+                'use_obv': combination['features'].get('use_obv', False),
+                'use_mfi': combination['features'].get('use_mfi', False),
+                'use_volatility': combination['features'].get('use_volatility', False),
+                'use_volume_features': combination['features'].get('use_volume_features', False),
+                'use_returns': combination['features'].get('use_returns', False),
                 
                 # Hiperparâmetros
                 'prediction_horizon': combination['prediction_horizon'],

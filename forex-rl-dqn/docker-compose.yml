@@ -27,6 +27,7 @@ services:
       - ./artifacts:/app/artifacts:ro
       - ./data:/app/data
       - ./models:/app/models:ro
+      - ./optimization_results:/app/optimization_results:ro
     environment:
       - ARTIFACTS_DIR=/app/artifacts
       - DATA_DIR=/app/data

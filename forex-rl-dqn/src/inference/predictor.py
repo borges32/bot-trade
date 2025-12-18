@@ -76,7 +76,9 @@ class TradingPredictor:
         self.feature_engineer = OptimizedFeatureEngineer(config)
         
         # Thresholds para decisão
-        self.min_confidence = config.get('inference', {}).get('min_confidence', 0.60)
+        # TEMPORÁRIO: Reduzido para 2% para testes (originalmente 15%)
+        # Permite gerar sinais mesmo com retornos muito pequenos
+        self.min_confidence = config.get('inference', {}).get('min_confidence', 0.02)
         
         # Tenta carregar test_direction_acc dos metadados
         try:
@@ -161,11 +163,30 @@ class TradingPredictor:
         # Base accuracy (do histórico de teste)
         base_accuracy = self.test_direction_acc
         
-        # Magnitude do retorno (quanto maior, mais confiante)
-        magnitude_factor = min(abs(predicted_return) * 100, 1.0)
+        # Magnitude do retorno (predicted_return está em escala decimal)
+        # Ex: 0.001 = 0.1% = 10 pips em forex típico
+        abs_return = abs(predicted_return)
         
-        # Confiança ajustada = base × magnitude
+        # Converte para percentual
+        return_pct = abs_return * 100
+        
+        # Fator de magnitude: escala logarítmica para dar mais peso a movimentos maiores
+        # - Movimentos de 0.05% (5 pips) → ~0.4 (40% do base)
+        # - Movimentos de 0.1% (10 pips) → ~0.6 (60% do base)
+        # - Movimentos de 0.2% (20 pips) → ~0.8 (80% do base)
+        # - Movimentos >= 0.5% (50 pips) → 1.0 (100% do base)
+        magnitude_factor = min(return_pct / 0.5, 1.0)
+        
+        # Confiança final = base_accuracy × magnitude_factor
+        # Se base_accuracy = 0.55 (55%) e return = 0.1% (10 pips)
+        # magnitude_factor = 0.1 / 0.5 = 0.2
+        # confidence = 0.55 × 0.2 = 0.11 (11%)
         confidence = base_accuracy * magnitude_factor
+        
+        # Log detalhado para debug
+        logger.info(f"[PREDICT DEBUG] predicted_return={predicted_return:.6f} ({return_pct:.4f}%), "
+                   f"base_accuracy={base_accuracy:.2%}, magnitude_factor={magnitude_factor:.4f}, "
+                   f"confidence={confidence:.2%}, min_confidence={self.min_confidence:.2%}")
         
         # Determina sinal
         if confidence >= self.min_confidence:
@@ -258,8 +279,11 @@ class TradingPredictor:
         # Predições em batch
         predictions = self.lightgbm.predict(df_features[feature_columns])
         
-        # Calcula confiança (mesma escala do predict)
-        confidences = np.minimum(np.abs(predictions) * 500, 1.0)
+        # Calcula confiança (mesma lógica do predict)
+        # Converte para percentual e normaliza
+        return_pcts = np.abs(predictions) * 100
+        magnitude_factors = np.minimum(return_pcts / 0.5, 1.0)
+        confidences = self.test_direction_acc * magnitude_factors
         
         # Determina sinais
         signals = []

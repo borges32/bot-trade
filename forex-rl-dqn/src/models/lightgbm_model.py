@@ -195,6 +195,9 @@ class LightGBMPredictor:
             'importance': self.model.feature_importances_
         }).sort_values('importance', ascending=False)
         
+        # Armazena métricas de teste para salvar posteriormente (se disponíveis)
+        # Nota: test_metrics será adicionado externamente no train_lightgbm.py
+        
         logger.info("Training completed!")
         logger.info(f"Train metrics: {metrics['train']}")
         if 'val' in metrics:
@@ -322,7 +325,8 @@ class LightGBMPredictor:
             'prediction_horizon': self.prediction_horizon,
             'classification_threshold': self.classification_threshold,
             'feature_names': self.feature_names,
-            'params': self.params
+            'params': self.params,
+            'test_metrics': getattr(self, 'test_metrics_', None)  # Salva métricas de teste se disponíveis
         }
         
         metadata_path = path.with_suffix('.metadata.pkl')

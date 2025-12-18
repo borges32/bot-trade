@@ -107,21 +107,22 @@ def get_predictor():
     """Obtém instância do predictor LightGBM."""
     global predictor
     if predictor is None:
-        # Carrega configuração
-        config_path = os.getenv('CONFIG_PATH', 'config_30m_optimized.yaml')
-        config_path_obj = Path(config_path)
+        # Carrega configuração do melhor resultado (JSON ou YAML)
+        config_base_path = os.getenv('CONFIG_PATH', 'optimization_results/usdjpy_30m')
+        config_path_obj = Path(config_base_path)
         
-        # Se for diretório, tenta encontrar um arquivo de config dentro
+        # Se for diretório, procura best_config.json ou best_config.yaml
         if config_path_obj.is_dir():
-            logger.warning(f"CONFIG_PATH aponta para diretório: {config_path_obj}")
+            logger.info(f"CONFIG_PATH aponta para diretório: {config_path_obj}")
+            # Prioriza JSON (parâmetros otimizados) sobre YAML
             candidate_files = [
-                config_path_obj / 'config.yaml',
-                config_path_obj / 'config_30m_optimized.yaml',
+                config_path_obj / 'best_config.json',
+                config_path_obj / 'best_config.yaml',
             ]
             existing = [c for c in candidate_files if c.exists() and c.is_file()]
             if existing:
                 config_path_obj = existing[0]
-                logger.info(f"Usando config encontrado dentro do diretório: {config_path_obj}")
+                logger.info(f"Usando config encontrado: {config_path_obj}")
             else:
                 raise FileNotFoundError(
                     f"CONFIG_PATH é um diretório e nenhum arquivo de config foi encontrado em {candidate_files}"
@@ -136,8 +137,103 @@ def get_predictor():
         if not Path(model_path).exists():
             raise FileNotFoundError(f"Modelo não encontrado: {model_path}")
         
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+        # Carrega configuração (JSON ou YAML)
+        if config_path.endswith('.json'):
+            logger.info(f"Carregando parâmetros otimizados do JSON: {config_path}")
+            with open(config_path, 'r') as f:
+                best_params = json.load(f)
+            
+            # Reconstrói config completo a partir dos parâmetros otimizados
+            config = {
+                'general': {
+                    'seed': 42,
+                    'verbose': True,
+                },
+                'data': {
+                    'timestamp_col': 'timestamp',
+                    'open_col': 'open',
+                    'high_col': 'high',
+                    'low_col': 'low',
+                    'close_col': 'close',
+                    'volume_col': 'volume',
+                    'lookback_window': 72,
+                },
+                'features': {
+                    # Features booleanas do resultado otimizado
+                    'use_rsi': best_params.get('use_rsi', False),
+                    'rsi_period': 14,
+                    'use_ema': best_params.get('use_ema', False),
+                    'ema_periods': [12, 26, 50],
+                    'ema_fast': 12,
+                    'ema_slow': 26,
+                    'use_macd': best_params.get('use_macd', False),
+                    'macd_fast': 12,
+                    'macd_slow': 26,
+                    'macd_signal': 9,
+                    'use_bollinger': best_params.get('use_bollinger', False),
+                    'bb_period': 20,
+                    'bb_std': 2.0,
+                    'use_atr': best_params.get('use_atr', False),
+                    'atr_period': 14,
+                    'use_momentum': best_params.get('use_momentum', False),
+                    'momentum_periods': [10, 20],
+                    'use_sma': best_params.get('use_sma', False),
+                    'sma_periods': [20, 50],
+                    'use_stochastic': best_params.get('use_stochastic', False),
+                    'stoch_k': 14,
+                    'stoch_d': 3,
+                    'use_adx': best_params.get('use_adx', False),
+                    'adx_period': 14,
+                    'use_volatility': best_params.get('use_volatility', False),
+                    'volatility_window': 20,
+                    'use_volume_features': best_params.get('use_volume_features', False),
+                    'volume_ma_period': 20,
+                    'use_returns': best_params.get('use_returns', False),
+                    'return_periods': [1, 3, 6, 12, 24],
+                },
+                'lightgbm': {
+                    'model_type': 'regressor',
+                    'prediction_horizon': int(best_params.get('prediction_horizon', 10)),
+                    'params': {
+                        'objective': 'regression',
+                        'metric': 'rmse',
+                        'boosting_type': 'gbdt',
+                        'num_leaves': int(best_params.get('num_leaves', 50)),
+                        'max_depth': int(best_params.get('max_depth', 6)),
+                        'learning_rate': float(best_params.get('learning_rate', 0.03)),
+                        'n_estimators': int(best_params.get('n_estimators', 500)),
+                        'min_child_samples': int(best_params.get('min_child_samples', 20)),
+                        'subsample': float(best_params.get('subsample', 0.8)),
+                        'subsample_freq': 1,
+                        'colsample_bytree': float(best_params.get('colsample_bytree', 0.8)),
+                        'reg_alpha': float(best_params.get('reg_alpha', 0.3)),
+                        'reg_lambda': float(best_params.get('reg_lambda', 0.3)),
+                        'random_state': 42,
+                        'n_jobs': -1,
+                        'verbose': -1,
+                    },
+                    'early_stopping_rounds': 50,
+                    'save_feature_importance': True,
+                },
+                'inference': {
+                    'lightgbm_model_path': model_path,
+                    'min_confidence': float(best_params.get('min_confidence', 0.02)),
+                }
+            }
+            
+            logger.info("Config reconstruído a partir dos parâmetros otimizados (JSON)")
+            logger.info(f"  - Features ativas: RSI={config['features']['use_rsi']}, "
+                       f"EMA={config['features']['use_ema']}, MACD={config['features']['use_macd']}, "
+                       f"Bollinger={config['features']['use_bollinger']}, ATR={config['features']['use_atr']}")
+            logger.info(f"  - Prediction Horizon: {config['lightgbm']['prediction_horizon']}")
+            logger.info(f"  - Learning Rate: {config['lightgbm']['params']['learning_rate']}")
+            logger.info(f"  - Num Leaves: {config['lightgbm']['params']['num_leaves']}")
+            
+        else:
+            # Carrega YAML normalmente
+            logger.info(f"Carregando config YAML: {config_path}")
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
         
         logger.info(f"Carregando predictor LightGBM com modelo: {model_path}")
         predictor = TradingPredictor(

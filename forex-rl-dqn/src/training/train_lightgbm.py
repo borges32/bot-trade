@@ -289,7 +289,28 @@ def train_lightgbm(config_path: str = 'config_hybrid.yaml') -> dict:
     test_metrics = predictor._compute_metrics(y_test, test_pred, X_test)
     metrics['test'] = test_metrics
     
+    # IMPORTANTE: Armazena test_metrics no predictor para salvar no metadata
+    predictor.test_metrics_ = test_metrics
+    
     logger.info(f"Test metrics: {test_metrics}")
+    
+    # Limpa modelos antigos antes de salvar o novo
+    logger.info(f"Limpando modelos antigos em {models_dir}...")
+    if models_dir.exists():
+        for old_file in models_dir.glob('lightgbm_model*'):
+            try:
+                old_file.unlink()
+                logger.info(f"  ✓ Removido: {old_file.name}")
+            except Exception as e:
+                logger.warning(f"  ✗ Erro ao remover {old_file.name}: {e}")
+        
+        # Limpa também arquivos de métricas antigos
+        for old_metrics in models_dir.glob('lightgbm_metrics_*.yaml'):
+            try:
+                old_metrics.unlink()
+                logger.info(f"  ✓ Removido: {old_metrics.name}")
+            except Exception as e:
+                logger.warning(f"  ✗ Erro ao remover {old_metrics.name}: {e}")
     
     # Salva modelo
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

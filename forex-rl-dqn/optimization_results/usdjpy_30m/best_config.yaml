@@ -16,7 +16,7 @@ data:
   volume_col: volume
   lookback_window: 72
 features:
-  use_rsi: true
+  use_rsi: false
   rsi_period: 14
   use_ema: true
   ema_periods:
@@ -32,26 +32,26 @@ features:
   use_bollinger: false
   bb_period: 20
   bb_std: 2.0
-  use_atr: false
+  use_atr: true
   atr_period: 14
-  use_momentum: true
+  use_momentum: false
   momentum_periods:
   - 10
   - 20
-  use_sma: true
+  use_sma: false
   sma_periods:
   - 20
   - 50
-  use_stochastic: true
+  use_stochastic: false
   stoch_k: 14
   stoch_d: 3
-  use_adx: true
+  use_adx: false
   adx_period: 14
-  use_volatility: true
+  use_volatility: false
   volatility_window: 20
-  use_volume_features: true
+  use_volume_features: false
   volume_ma_period: 20
-  use_returns: true
+  use_returns: false
   return_periods:
   - 1
   - 3
@@ -66,15 +66,15 @@ lightgbm:
     metric: rmse
     boosting_type: gbdt
     num_leaves: 50
-    max_depth: 4
-    learning_rate: 0.03
+    max_depth: 8
+    learning_rate: 0.01
     n_estimators: 500
-    min_child_samples: 20
+    min_child_samples: 30
     subsample: 0.9
     subsample_freq: 1
-    colsample_bytree: 0.9
-    reg_alpha: 0.5
-    reg_lambda: 0.5
+    colsample_bytree: 0.7
+    reg_alpha: 0.1
+    reg_lambda: 0.3
     random_state: 42
     n_jobs: -1
     verbose: -1
@@ -82,7 +82,7 @@ lightgbm:
   save_feature_importance: true
 inference:
   lightgbm_model_path: models/hybrid_30m/lightgbm_model.txt
-  min_confidence: 0.05
+  min_confidence: 0.02
 api:
   host: 0.0.0.0
   port: 8000

@@ -1,6 +1,6 @@
 ================================================================================
 RELATÓRIO DE OTIMIZAÇÃO - USDJPY 30m
-Data: 2025-12-15 08:19:44
+Data: 2025-12-17 21:07:44
 ================================================================================
 
 MELHOR CONFIGURAÇÃO ENCONTRADA
@@ -8,19 +8,19 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
 
 1. MÉTRICAS DE PERFORMANCE (Test Set)
 
-   Score Combinado: 0.419822
+   Score Combinado: 0.419821
    - Quanto menor, melhor (combina RMSE e erro de direção)
 
-   RMSE (Root Mean Square Error): 0.006383
+   RMSE (Root Mean Square Error): 0.006382
    - Erro médio quadrático das previsões de preço
    - Quanto menor, mais preciso é o modelo
 
-   MAE (Mean Absolute Error): 0.004265
+   MAE (Mean Absolute Error): 0.004263
    - Erro médio absoluto das previsões
-   - Interpretação: em média, previsões erram por 0.004265 pips
+   - Interpretação: em média, previsões erram por 0.004263 pips
 
-   R² (Coeficiente de Determinação): -0.000991
-   - Explica -0.10% da variância dos preços
+   R² (Coeficiente de Determinação): -0.000859
+   - Explica -0.09% da variância dos preços
    - Valores próximos de 1 são melhores
 
    Acurácia Direcional: 0.5866 (58.66%)
@@ -29,7 +29,7 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
 
 2. FEATURES/INDICADORES TÉCNICOS ATIVADOS
 
-   ✓ ATIVO         RSI (Relative Strength Index)                 - Identifica condições de sobrecompra/sobrevenda
+   ✗ Desativado    RSI (Relative Strength Index)                 - Identifica condições de sobrecompra/sobrevenda
    ✓ ATIVO         EMA (Exponential Moving Average)              - Suaviza tendências de preço
    ✓ ATIVO         MACD (Moving Average Convergence Divergence)  - Detecta mudanças de momentum
    ✗ Desativado    Stochastic Oscillator                         - Mede momentum comparando preço de fechamento com range
@@ -40,7 +40,7 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
    ✗ Desativado    OBV (On-Balance Volume)                       - Relaciona volume com movimento de preço
    ✗ Desativado    MFI (Money Flow Index)                        - RSI ponderado por volume
    ✗ Desativado    Bollinger Bands                               - Bandas de volatilidade
-   ✗ Desativado    ATR (Average True Range)                      - Mede volatilidade do mercado
+   ✓ ATIVO         ATR (Average True Range)                      - Mede volatilidade do mercado
 
 3. HIPERPARÂMETROS DO LIGHTGBM
 
@@ -48,7 +48,7 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
    - Quantos candles à frente o modelo prevê
    - Valor 16 = prevê 480 minutos à frente
 
-   Learning Rate: 0.03
+   Learning Rate: 0.01
    - Taxa de aprendizado do modelo
    - Valores menores = aprendizado mais lento mas estável
 
@@ -56,7 +56,7 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
    - Número máximo de folhas nas árvores
    - Controla complexidade: mais folhas = modelo mais complexo
 
-   Max Depth: 4
+   Max Depth: 8
    - Profundidade máxima das árvores
    - Limita crescimento para evitar overfitting
 
@@ -64,7 +64,7 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
    - Número de árvores no ensemble
    - Mais árvores = modelo mais robusto (até certo ponto)
 
-   Min Child Samples: 20
+   Min Child Samples: 30
    - Mínimo de amostras para criar uma folha
    - Previne overfitting em regiões com poucos dados
 
@@ -72,15 +72,15 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
    - Fração de dados usada para treinar cada árvore
    - Adiciona randomização para melhorar generalização
 
-   Colsample Bytree: 0.9
+   Colsample Bytree: 0.7
    - Fração de features usadas em cada árvore
    - Reduz correlação entre árvores
 
-   Reg Alpha: 0.5
+   Reg Alpha: 0.1
    - Regularização L1 (Lasso)
    - Penaliza features menos importantes
 
-   Reg Lambda: 0.5
+   Reg Lambda: 0.3
    - Regularização L2 (Ridge)
    - Suaviza pesos para evitar overfitting
 
@@ -88,35 +88,35 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
 TOP 5 MELHORES CONFIGURAÇÕES
 ================================================================================
 
-#1 - Score: 0.419822
-   Métricas: RMSE=0.006383, MAE=0.004265, R²=-0.000991, Dir Acc=0.5866
-   Features: RSI=True, EMA=True, MACD=True, Bollinger=False, ATR=False
-   Hiperparâmetros: LR=0.03, Leaves=50, Depth=4, N_Est=500
-   Horizon=16, Subsample=0.9, Colsample=0.9
+#1 - Score: 0.419821
+   Métricas: RMSE=0.006382, MAE=0.004263, R²=-0.000859, Dir Acc=0.5866
+   Features: RSI=False, EMA=True, MACD=True, Bollinger=False, ATR=True
+   Hiperparâmetros: LR=0.01, Leaves=50, Depth=8, N_Est=500
+   Horizon=16, Subsample=0.9, Colsample=0.7
 
-#2 - Score: 0.419822
-   Métricas: RMSE=0.006383, MAE=0.004266, R²=-0.001246, Dir Acc=0.5866
-   Features: RSI=True, EMA=True, MACD=False, Bollinger=True, ATR=True
-   Hiperparâmetros: LR=0.03, Leaves=50, Depth=6, N_Est=500
-   Horizon=16, Subsample=0.8, Colsample=0.8
+#2 - Score: 0.419823
+   Métricas: RMSE=0.006384, MAE=0.004261, R²=-0.001378, Dir Acc=0.5866
+   Features: RSI=True, EMA=True, MACD=True, Bollinger=True, ATR=True
+   Hiperparâmetros: LR=0.03, Leaves=31, Depth=8, N_Est=300
+   Horizon=16, Subsample=0.7, Colsample=0.9
 
 #3 - Score: 0.419823
-   Métricas: RMSE=0.006384, MAE=0.004266, R²=-0.001305, Dir Acc=0.5866
-   Features: RSI=True, EMA=True, MACD=False, Bollinger=True, ATR=True
-   Hiperparâmetros: LR=0.01, Leaves=50, Depth=6, N_Est=500
+   Métricas: RMSE=0.006384, MAE=0.004261, R²=-0.001378, Dir Acc=0.5866
+   Features: RSI=True, EMA=False, MACD=False, Bollinger=True, ATR=True
+   Hiperparâmetros: LR=0.03, Leaves=70, Depth=8, N_Est=300
    Horizon=16, Subsample=0.7, Colsample=0.9
 
 #4 - Score: 0.419823
-   Métricas: RMSE=0.006384, MAE=0.004262, R²=-0.001358, Dir Acc=0.5866
+   Métricas: RMSE=0.006384, MAE=0.004261, R²=-0.001378, Dir Acc=0.5866
    Features: RSI=True, EMA=True, MACD=True, Bollinger=False, ATR=False
-   Hiperparâmetros: LR=0.03, Leaves=50, Depth=8, N_Est=500
-   Horizon=16, Subsample=0.7, Colsample=0.7
+   Hiperparâmetros: LR=0.05, Leaves=70, Depth=6, N_Est=500
+   Horizon=16, Subsample=0.9, Colsample=0.8
 
 #5 - Score: 0.419823
    Métricas: RMSE=0.006384, MAE=0.004261, R²=-0.001378, Dir Acc=0.5866
    Features: RSI=True, EMA=True, MACD=True, Bollinger=True, ATR=True
-   Hiperparâmetros: LR=0.05, Leaves=31, Depth=8, N_Est=800
-   Horizon=16, Subsample=0.7, Colsample=0.8
+   Hiperparâmetros: LR=0.03, Leaves=31, Depth=6, N_Est=500
+   Horizon=16, Subsample=0.8, Colsample=0.7
 
 ================================================================================
 INTERPRETAÇÃO E RECOMENDAÇÕES
