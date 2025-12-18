@@ -535,7 +535,17 @@ async def create_prediction(request: PredictionRequest):
         # 6. Salva no Redis
         r = get_redis_client()
         r.set('latest_prediction', json.dumps(result))
-        logger.info("[LightGBM] Predição salva no Redis")
+        
+        # 7. Salva no histórico (lista ordenada por timestamp)
+        history_key = 'prediction_history'
+        # Adiciona o timestamp como score para ordenação
+        timestamp_score = datetime.utcnow().timestamp()
+        r.zadd(history_key, {json.dumps(result): timestamp_score})
+        
+        # Mantém apenas os últimos 100 registros
+        r.zremrangebyrank(history_key, 0, -101)
+        
+        logger.info("[LightGBM] Predição salva no Redis e no histórico")
         
         return PredictionResponse(**result)
     
@@ -605,6 +615,47 @@ async def delete_latest_prediction():
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao deletar predição: {str(e)}"
+        )
+
+
+@app.get("/api/prediction/history", tags=["LightGBM"])
+@app.get("/prediction/history", tags=["LightGBM"], include_in_schema=False)
+async def get_prediction_history(limit: int = 50):
+    """
+    Retorna o histórico de predições LightGBM armazenadas no Redis.
+    
+    Args:
+        limit: Número máximo de predições a retornar (padrão: 50, máximo: 100)
+    
+    Returns:
+        Lista de predições ordenadas da mais recente para a mais antiga
+    """
+    try:
+        r = get_redis_client()
+        
+        # Limita o número de resultados
+        limit = min(limit, 100)
+        
+        # Busca as últimas predições (ordenadas por timestamp decrescente)
+        history_key = 'prediction_history'
+        predictions_raw = r.zrevrange(history_key, 0, limit - 1)
+        
+        if not predictions_raw:
+            return {"predictions": [], "count": 0}
+        
+        # Parse JSON de cada predição
+        predictions = [json.loads(p) for p in predictions_raw]
+        
+        return {
+            "predictions": predictions,
+            "count": len(predictions)
+        }
+    
+    except Exception as e:
+        logger.error(f"[LightGBM] Erro ao buscar histórico: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar histórico: {str(e)}"
         )
 
 

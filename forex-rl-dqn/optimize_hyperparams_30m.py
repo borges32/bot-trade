@@ -138,7 +138,8 @@ class HyperparameterOptimizer:
             
             combo = {
                 'features': search_space['features'][feature_idx],
-                'prediction_horizon': int(np.random.choice(search_space['prediction_horizon'])),  # Converte para int Python
+                #'prediction_horizon': int(np.random.choice(search_space['prediction_horizon'])),  # Converte para int Python
+                'prediction_horizon': 3,
                 'learning_rate': float(np.random.choice(search_space['learning_rate'])),  # Converte para float Python
                 'num_leaves': int(np.random.choice(search_space['num_leaves'])),
                 'max_depth': int(np.random.choice(search_space['max_depth'])),

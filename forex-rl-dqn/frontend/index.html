@@ -186,6 +186,16 @@
             transform: scale(0.95);
         }
 
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        }
+
         .icon {
             font-size: 1.2em;
             margin-right: 8px;
@@ -215,9 +225,14 @@
             </div>
         </div>
 
-        <button class="refresh-btn" onclick="loadPrediction()">
-            <span class="icon">🔄</span> Atualizar Predição
-        </button>
+        <div class="btn-group">
+            <button class="refresh-btn" onclick="loadPrediction()">
+                <span class="icon">🔄</span> Atualizar Predição
+            </button>
+            <a href="history.html" class="refresh-btn btn-secondary" style="text-decoration: none; justify-content: center; align-items: center; display: flex;">
+                <span class="icon">📈</span> Ver Histórico
+            </a>
+        </div>
     </div>
 
     <script>
@@ -317,6 +332,16 @@
                             <div class="metric-label">💰 Preço Atual</div>
                             <div class="metric-value">
                                 ${data.current_price.toFixed(5)}
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <div class="metric-label">🎯 Preço Previsto</div>
+                            <div class="metric-value">
+                                ${(data.current_price * (1 + data.predicted_return)).toFixed(5)}
+                            </div>
+                            <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                                ${data.predicted_return > 0 ? '+' : ''}${(data.current_price * data.predicted_return).toFixed(5)}
                             </div>
                         </div>
 

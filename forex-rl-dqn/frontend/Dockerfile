@@ -1,7 +1,7 @@
 FROM nginx:alpine
 
 # Copia o frontend
-COPY index.html /usr/share/nginx/html/
+COPY *.html /usr/share/nginx/html/
 
 # Copia configuração customizada do nginx (opcional)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
