@@ -22,6 +22,7 @@ from itertools import product
 import json
 from copy import deepcopy
 from typing import Dict
+import shutil
 
 # Adiciona path raiz
 root_dir = Path(__file__).parent
@@ -80,18 +81,18 @@ class HyperparameterOptimizer:
             ],
             
             # === PREDICTION HORIZON (30m: períodos maiores) ===
-            'prediction_horizon': [6, 10, 16],  # 3h, 5h, 8h
+            'prediction_horizon': [ 6, 8, 10, 12, 16, 20, 24],  # 30min a 12h
             
             # === LIGHTGBM PARAMS ===
-            'learning_rate': [0.01, 0.03, 0.05],
-            'num_leaves': [31, 50, 70],
-            'max_depth': [4, 6, 8],
-            'n_estimators': [300, 500, 800],
-            'min_child_samples': [10, 20, 30],
-            'subsample': [0.7, 0.8, 0.9],
-            'colsample_bytree': [0.7, 0.8, 0.9],
-            'reg_alpha': [0.1, 0.3, 0.5],
-            'reg_lambda': [0.1, 0.3, 0.5],
+            'learning_rate': [0.001, 0.005, 0.008, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15],
+            'num_leaves': [15, 20, 25, 31, 35, 40, 45, 50, 60, 63, 70, 80, 100, 127],
+            'max_depth': [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15],
+            'n_estimators': [100, 150, 200, 250, 300, 400, 500, 600, 700, 800, 1000, 1200, 1500],
+            'min_child_samples': [3, 5, 7, 10, 12, 15, 18, 20, 25, 30, 35, 40, 50],
+            'subsample': [0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.82, 0.85, 0.87, 0.9, 0.92, 0.95, 1.0],
+            'colsample_bytree': [0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.82, 0.85, 0.87, 0.9, 0.92, 0.95, 1.0],
+            'reg_alpha': [0.0, 0.01, 0.05, 0.08, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0],
+            'reg_lambda': [0.0, 0.01, 0.05, 0.08, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 1.0],
         }
         
         return search_space
@@ -138,8 +139,8 @@ class HyperparameterOptimizer:
             
             combo = {
                 'features': search_space['features'][feature_idx],
-                #'prediction_horizon': int(np.random.choice(search_space['prediction_horizon'])),  # Converte para int Python
-                'prediction_horizon': 3,
+                'prediction_horizon': int(np.random.choice(search_space['prediction_horizon'])),  # Converte para int Python
+                #'prediction_horizon': 3,
                 'learning_rate': float(np.random.choice(search_space['learning_rate'])),  # Converte para float Python
                 'num_leaves': int(np.random.choice(search_space['num_leaves'])),
                 'max_depth': int(np.random.choice(search_space['max_depth'])),
@@ -410,6 +411,24 @@ class HyperparameterOptimizer:
                 yaml.safe_dump(self.best_config, f, sort_keys=False)
             logger.info(f"📄 Configuração YAML criada em: {self.best_config_path}")
 
+        # Limpa a pasta de modelos antes de treinar o modelo final
+        models_dir = Path(self.best_config.get('lightgbm', {}).get('models_dir', 'models/hybrid_30m'))
+        if models_dir.exists():
+            logger.info(f"🧹 Limpando pasta de modelos: {models_dir}")
+            for old_file in models_dir.glob('lightgbm_model*'):
+                try:
+                    old_file.unlink()
+                    logger.info(f"  ✓ Removido: {old_file.name}")
+                except Exception as e:
+                    logger.warning(f"  ✗ Erro ao remover {old_file.name}: {e}")
+            
+            for old_metrics in models_dir.glob('lightgbm_metrics_*.yaml'):
+                try:
+                    old_metrics.unlink()
+                    logger.info(f"  ✓ Removido: {old_metrics.name}")
+                except Exception as e:
+                    logger.warning(f"  ✗ Erro ao remover {old_metrics.name}: {e}")
+
         logger.info("🚀 Treinando modelo final com a melhor configuração...")
         final_result = train_lightgbm(str(self.best_config_path))
 
@@ -418,6 +437,7 @@ class HyperparameterOptimizer:
         with open(final_metrics_path, 'w') as f:
             json.dump(final_result, f, indent=2)
         logger.info(f"✅ Treino final concluído. Métricas salvas em: {final_metrics_path}")
+        logger.info(f"📦 Modelo final salvo em: {final_result.get('model_path')}")
         logger.info(f"📦 Modelo salvo em: {final_result.get('model_path')}")
     
     def print_summary(self):

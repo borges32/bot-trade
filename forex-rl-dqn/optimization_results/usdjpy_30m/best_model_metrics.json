@@ -1,34 +1,34 @@
 {
   "metrics": {
     "train": {
-      "n_samples": 15966,
-      "rmse": 0.006735182538561134,
-      "mae": 0.0039870160265111235,
-      "r2": 0.004842106303416083,
-      "direction_accuracy": 0.5427157710134035
+      "n_samples": 6381,
+      "rmse": 0.006448481841595757,
+      "mae": 0.005205068284375417,
+      "r2": 0.059513864750357026,
+      "direction_accuracy": 0.5980253878702397
     },
     "val": {
-      "n_samples": 3414,
-      "rmse": 0.004407839230990217,
-      "mae": 0.003013461436183043,
-      "r2": -0.0045895947351171085,
-      "direction_accuracy": 0.5538957234915056
+      "n_samples": 1352,
+      "rmse": 0.007202285945376118,
+      "mae": 0.005888009878802301,
+      "r2": 0.005469709402839751,
+      "direction_accuracy": 0.5162721893491125
     },
     "test": {
-      "n_samples": 3414,
-      "rmse": 0.005100693264148345,
-      "mae": 0.003287293705144255,
-      "r2": -0.0008523964624018721,
-      "direction_accuracy": 0.5700058582308143
+      "n_samples": 1352,
+      "rmse": 0.006969788493010855,
+      "mae": 0.005584996025744582,
+      "r2": -0.0017188173298150478,
+      "direction_accuracy": 0.5813609467455622
     }
   },
   "model_path": "/home/alexandre/Documentos/github/bot-trade/forex-rl-dqn/models/hybrid_30m/lightgbm_model",
   "feature_columns": [
     "rsi",
-    "ema_fast",
-    "ema_slow",
-    "macd",
-    "macd_signal",
+    "bb_middle",
+    "bb_upper",
+    "bb_lower",
+    "atr",
     "range",
     "range_pct",
     "body",
@@ -40,15 +40,16 @@
     "rsi_overbought",
     "rsi_oversold",
     "rsi_divergence",
-    "ema_cross",
-    "ema_cross_pct",
-    "ema_cross_signal",
-    "price_ema_fast_dist",
-    "price_ema_slow_dist",
-    "macd_hist",
-    "macd_hist_change",
-    "macd_cross_signal",
-    "macd_strength",
+    "bb_width",
+    "bb_position",
+    "bb_position_normalized",
+    "price_bb_upper_dist",
+    "price_bb_lower_dist",
+    "bb_breakout_upper",
+    "bb_breakout_lower",
+    "atr_normalized",
+    "atr_ma",
+    "atr_ratio",
     "signal_convergence"
   ]
 }

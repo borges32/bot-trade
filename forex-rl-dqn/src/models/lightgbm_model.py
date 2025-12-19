@@ -15,10 +15,14 @@ from typing import Dict, Tuple, Optional, Union
 from pathlib import Path
 import joblib
 import logging
+import warnings
 from sklearn.metrics import (
     roc_auc_score, accuracy_score, precision_score, recall_score,
     mean_squared_error, mean_absolute_error, r2_score
 )
+
+# Suprime warnings do LightGBM sobre splits
+warnings.filterwarnings('ignore', category=UserWarning, module='lightgbm')
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +168,10 @@ class LightGBMPredictor:
         
         if X_val is not None and y_val is not None:
             eval_set = [(X_val, y_val)]
-            callbacks.append(lgb.early_stopping(self.early_stopping_rounds, verbose=False))
+            # Early stopping com rounds maior para evitar parada prematura
+            # Se early_stopping_rounds < 100, desabilita (evita parar com 1 árvore)
+            if self.early_stopping_rounds >= 100:
+                callbacks.append(lgb.early_stopping(self.early_stopping_rounds, verbose=False))
             callbacks.append(lgb.log_evaluation(period=100))
         
         logger.info("Training LightGBM model...")
@@ -249,9 +256,20 @@ class LightGBMPredictor:
         Returns:
             Predição (probabilidade ou retorno esperado)
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Converte para DataFrame
         X = pd.DataFrame([features])[self.feature_names]
-        return self.predict(X)[0]
+        
+        # Log para debug
+        logger.info(f"[MODEL DEBUG] Input features shape: {X.shape}")
+        logger.info(f"[MODEL DEBUG] Sample values: {X.iloc[0].head(10).to_dict()}")
+        
+        result = self.predict(X)[0]
+        logger.info(f"[MODEL DEBUG] Prediction result: {result:.8f}")
+        
+        return result
     
     def _compute_metrics(
         self, 

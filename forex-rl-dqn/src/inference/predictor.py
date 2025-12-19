@@ -155,8 +155,20 @@ class TradingPredictor:
         if current_price is None:
             current_price = last_row['close']
         
+        # Log das features para debug
+        logger.info(f"[FEATURES DEBUG] Last candle close: {last_row['close']:.5f}")
+        
+        # Log de algumas features (com verificação segura)
+        sample_features = []
+        for feat_name in ['close', 'rsi', 'ema_fast', 'macd']:
+            if feat_name in last_row:
+                sample_features.append(f"{feat_name}={last_row[feat_name]:.5f}")
+        logger.info(f"[FEATURES DEBUG] Sample features: {', '.join(sample_features)}")
+        
         # Predição LightGBM
         features_dict = {col: last_row[col] for col in feature_columns}
+        logger.info(f"[FEATURES DEBUG] Total features sent to model: {len(features_dict)}")
+        
         predicted_return = self.lightgbm.predict_single(features_dict)
         
         # Calcula confiança ajustada
