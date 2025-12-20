@@ -1,33 +1,37 @@
 {
   "metrics": {
     "train": {
-      "n_samples": 6381,
-      "rmse": 0.006448481841595757,
-      "mae": 0.005205068284375417,
-      "r2": 0.059513864750357026,
-      "direction_accuracy": 0.5980253878702397
+      "n_samples": 6393,
+      "rmse": 0.004124789342906941,
+      "mae": 0.003349567243710641,
+      "r2": 0.03658320809910287,
+      "direction_accuracy": 0.6005005474737994
     },
     "val": {
-      "n_samples": 1352,
-      "rmse": 0.007202285945376118,
-      "mae": 0.005888009878802301,
-      "r2": 0.005469709402839751,
-      "direction_accuracy": 0.5162721893491125
+      "n_samples": 1364,
+      "rmse": 0.004401234380452396,
+      "mae": 0.003561281786726122,
+      "r2": 0.009744347143812226,
+      "direction_accuracy": 0.5557184750733137
     },
     "test": {
-      "n_samples": 1352,
-      "rmse": 0.006969788493010855,
-      "mae": 0.005584996025744582,
-      "r2": -0.0017188173298150478,
-      "direction_accuracy": 0.5813609467455622
+      "n_samples": 1364,
+      "rmse": 0.004483265435533176,
+      "mae": 0.003601491660364407,
+      "r2": -0.0009880456390032322,
+      "direction_accuracy": 0.5601173020527859
     }
   },
   "model_path": "/home/alexandre/Documentos/github/bot-trade/forex-rl-dqn/models/hybrid_30m/lightgbm_model",
   "feature_columns": [
     "rsi",
+    "ema_fast",
+    "ema_slow",
     "bb_middle",
     "bb_upper",
     "bb_lower",
+    "macd",
+    "macd_signal",
     "atr",
     "range",
     "range_pct",
@@ -40,6 +44,11 @@
     "rsi_overbought",
     "rsi_oversold",
     "rsi_divergence",
+    "ema_cross",
+    "ema_cross_pct",
+    "ema_cross_signal",
+    "price_ema_fast_dist",
+    "price_ema_slow_dist",
     "bb_width",
     "bb_position",
     "bb_position_normalized",
@@ -47,6 +56,10 @@
     "price_bb_lower_dist",
     "bb_breakout_upper",
     "bb_breakout_lower",
+    "macd_hist",
+    "macd_hist_change",
+    "macd_cross_signal",
+    "macd_strength",
     "atr_normalized",
     "atr_ma",
     "atr_ratio",

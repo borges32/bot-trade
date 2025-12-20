@@ -81,7 +81,7 @@ class HyperparameterOptimizer:
             ],
             
             # === PREDICTION HORIZON (30m: períodos maiores) ===
-            'prediction_horizon': [ 6, 8, 10, 12, 16, 20, 24],  # 30min a 12h
+            'prediction_horizon': [6, 8],  # 30min a 12h
             
             # === LIGHTGBM PARAMS ===
             'learning_rate': [0.001, 0.005, 0.008, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.07, 0.1, 0.15],
