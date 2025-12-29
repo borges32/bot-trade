@@ -201,7 +201,8 @@ class TradingPredictor:
                    f"confidence={confidence:.2%}, min_confidence={self.min_confidence:.2%}")
         
         # Determina sinal
-        if confidence >= self.min_confidence:
+        # Regra: confidence >= min_confidence E confidence > 2.8%
+        if confidence >= self.min_confidence and confidence > 0.028:
             if predicted_return > 0:
                 signal = "BUY"
             else:
@@ -298,9 +299,10 @@ class TradingPredictor:
         confidences = self.test_direction_acc * magnitude_factors
         
         # Determina sinais
+        # Regra: confidence >= min_confidence E confidence > 2.8%
         signals = []
         for pred, conf in zip(predictions, confidences):
-            if conf >= self.min_confidence:
+            if conf >= self.min_confidence and conf > 0.028:
                 signals.append("BUY" if pred > 0 else "SELL")
             else:
                 signals.append("NEUTRAL")
