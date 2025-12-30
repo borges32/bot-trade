@@ -15,53 +15,53 @@ test:
     - -1
     - 0
   - !!binary |
-    7LHHHnvs4T8=
+    uVwul8vl4j8=
   mae: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    Lxa9HOCAbT8=
-  n_samples: 1364
+    t/BdqsYPcz8=
+  n_samples: 381
   r2: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    AOA27SkwUL8=
+    AJtpTrfxcb8=
   rmse: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    PGbMZgtdcj8=
+    dWGIKNGDdz8=
 train:
   direction_accuracy: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    fCmU7Ew34z8=
+    o1N81OgU5z8=
   mae: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    U0ePOI1waz8=
-  n_samples: 6393
+    QQ27T1omcT8=
+  n_samples: 1812
   r2: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    IKC8xAi7oj8=
+    VOVMBjyazz8=
   rmse: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    fnFKtSflcD8=
+    8VSanx/gdT8=
 val:
   direction_accuracy: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    yCGHHHLI4T8=
+    2Ba2hW1h2z8=
   mae: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    MlrJmYwsbT8=
-  n_samples: 1364
+    6GkSJ6wNdT8=
+  n_samples: 381
   r2: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    wKhtItj0gz8=
+    UMuMUPBCtb8=
   rmse: !!python/object/apply:numpy.core.multiarray.scalar
   - *id001
   - !!binary |
-    oP+dWwcHcj8=
+    0MWdUEn8eT8=

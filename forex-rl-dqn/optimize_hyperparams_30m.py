@@ -233,6 +233,10 @@ class HyperparameterOptimizer:
             # Extrai métricas
             metrics = result['metrics']
             
+            # Calcula média de confiança das predições de teste
+            test_confidence_mean = self._calculate_test_confidence(result, config)
+            logger.info(f"   Test Confidence Mean: {test_confidence_mean:.4f}")
+            
             # Resultado consolidado
             eval_result = {
                 'combination_id': index,
@@ -288,6 +292,7 @@ class HyperparameterOptimizer:
                 'test_mae': metrics['test']['mae'],
                 'test_r2': metrics['test']['r2'],
                 'test_direction_acc': metrics['test']['direction_accuracy'],
+                'test_confidence_mean': test_confidence_mean,
                 
                 # Score combinado (menor é melhor)
                 'combined_score': metrics['test']['rmse'] + (1 - metrics['test']['direction_accuracy']),
@@ -296,6 +301,7 @@ class HyperparameterOptimizer:
             logger.info(f"✅ RESULTADO:")
             logger.info(f"   Test RMSE: {eval_result['test_rmse']:.6f}")
             logger.info(f"   Test Direction Acc: {eval_result['test_direction_acc']:.4f}")
+            logger.info(f"   Test Confidence Mean: {eval_result['test_confidence_mean']:.4f}")
             logger.info(f"   Combined Score: {eval_result['combined_score']:.6f}")
             
             return eval_result, config
@@ -310,6 +316,80 @@ class HyperparameterOptimizer:
             # Remove config temporário
             if temp_config_path.exists():
                 temp_config_path.unlink()
+    
+    def _calculate_test_confidence(self, train_result: dict, config: dict) -> float:
+        """
+        Calcula a média de confiança das predições de teste.
+        
+        Args:
+            train_result: Resultado do treinamento (dict com metrics, model_path, etc)
+            config: Configuração usada
+            
+        Returns:
+            Média de confiança das predições de teste
+        """
+        try:
+            # Carrega dados de teste
+            from src.common.features_optimized import OptimizedFeatureEngineer
+            from src.models.lightgbm_model import LightGBMPredictor
+            
+            # Carrega dados
+            data_config = config['data']
+            data_file = root_dir / data_config['train_file']
+            df = pd.read_csv(data_file)
+            
+            # Renomeia colunas
+            column_mapping = {
+                data_config.get('timestamp_col', 'timestamp'): 'timestamp',
+                data_config.get('open_col', 'open'): 'open',
+                data_config.get('high_col', 'high'): 'high',
+                data_config.get('low_col', 'low'): 'low',
+                data_config.get('close_col', 'close'): 'close',
+                data_config.get('volume_col', 'volume'): 'volume',
+            }
+            rename_map = {k: v for k, v in column_mapping.items() if k in df.columns}
+            df = df.rename(columns=rename_map)
+            
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df = df.sort_values('timestamp').reset_index(drop=True)
+            
+            # Cria features
+            fe = OptimizedFeatureEngineer(config)
+            df_features = fe.create_features(df)
+            df_features = df_features.dropna().reset_index(drop=True)
+            
+            # Split de teste
+            n = len(df_features)
+            test_start = int(n * 0.8)
+            test_df = df_features.iloc[test_start:].copy()
+            
+            # Carrega modelo
+            model_path = train_result['model_path']
+            predictor = LightGBMPredictor(config.get('lightgbm', {}))
+            predictor.load(model_path)
+            
+            # Prepara features
+            feature_columns = train_result['feature_columns']
+            X_test, y_test = predictor.prepare_data(test_df, feature_columns, create_target=True)
+            
+            # Faz predições
+            predictions = predictor.predict(X_test)
+            
+            # Calcula confiança para cada predição usando a mesma lógica do TradingPredictor
+            base_accuracy = train_result['metrics']['test']['direction_accuracy']
+            abs_returns = np.abs(predictions)
+            return_pcts = abs_returns * 100
+            # Fórmula ajustada: confidence = base_accuracy × (1 + return_pct * 10)
+            magnitude_multipliers = 1.0 + (return_pcts * 10.0)
+            confidences = np.minimum(base_accuracy * magnitude_multipliers, 1.0)
+            
+            # Retorna média
+            return float(np.mean(confidences))
+            
+        except Exception as e:
+            logger.warning(f"Could not calculate test confidence: {e}")
+            return 0.0
     
     def run_optimization(self, max_combinations: int = 100):
         """
@@ -456,6 +536,10 @@ class HyperparameterOptimizer:
         logger.info(f"  RMSE - Min: {df['test_rmse'].min():.6f}, Max: {df['test_rmse'].max():.6f}, Média: {df['test_rmse'].mean():.6f}")
         logger.info(f"  Direction Acc - Min: {df['test_direction_acc'].min():.4f}, Max: {df['test_direction_acc'].max():.4f}, Média: {df['test_direction_acc'].mean():.4f}")
         
+        # Adiciona estatísticas de confiança se disponível
+        if 'test_confidence_mean' in df.columns:
+            logger.info(f"  Confidence Mean - Min: {df['test_confidence_mean'].min():.4f}, Max: {df['test_confidence_mean'].max():.4f}, Média: {df['test_confidence_mean'].mean():.4f}")
+        
         logger.info(f"\n{'='*80}")
         logger.info(f"🏆 MELHOR CONFIGURAÇÃO")
         logger.info(f"{'='*80}")
@@ -478,6 +562,7 @@ class HyperparameterOptimizer:
         logger.info(f"  MAE: {best['test_mae']:.6f}")
         logger.info(f"  R²: {best['test_r2']:.6f}")
         logger.info(f"  Direction Accuracy: {best['test_direction_acc']:.4f}")
+        logger.info(f"  Confidence Mean: {best.get('test_confidence_mean', 0.0):.4f}")
         
         # Top 5 melhores
         logger.info(f"\n{'='*80}")
@@ -489,6 +574,7 @@ class HyperparameterOptimizer:
             logger.info(f"\n#{idx+1}:")
             logger.info(f"  Score: {row['combined_score']:.6f}")
             logger.info(f"  Test RMSE: {row['test_rmse']:.6f}, Direction Acc: {row['test_direction_acc']:.4f}")
+            logger.info(f"  Confidence Mean: {row.get('test_confidence_mean', 0.0):.4f}")
             logger.info(f"  Features: EMA={row['use_ema']}, MACD={row['use_macd']}, RSI={row['use_rsi']}")
             logger.info(f"  LR={row['learning_rate']}, Leaves={row['num_leaves']}, Depth={row['max_depth']}")
         
@@ -528,6 +614,10 @@ class HyperparameterOptimizer:
             f.write(f"   Acurácia Direcional: {best['test_direction_acc']:.4f} ({best['test_direction_acc']*100:.2f}%)\n")
             f.write(f"   - Percentual de vezes que prevê corretamente se o preço vai subir ou descer\n")
             f.write(f"   - Crucial para trading: acima de 50% indica poder preditivo\n\n")
+            
+            f.write(f"   Confidence Mean: {best.get('test_confidence_mean', 0.0):.4f} ({best.get('test_confidence_mean', 0.0)*100:.2f}%)\n")
+            f.write(f"   - Média de confiança das predições no conjunto de teste\n")
+            f.write(f"   - Indica o nível médio de certeza do modelo nas predições\n\n")
             
             # Features Ativadas
             f.write("2. FEATURES/INDICADORES TÉCNICOS ATIVADOS\n\n")
@@ -605,6 +695,7 @@ class HyperparameterOptimizer:
                 f.write(f"#{idx} - Score: {row['combined_score']:.6f}\n")
                 f.write(f"   Métricas: RMSE={row['test_rmse']:.6f}, MAE={row['test_mae']:.6f}, "
                        f"R²={row['test_r2']:.6f}, Dir Acc={row['test_direction_acc']:.4f}\n")
+                f.write(f"   Confidence Mean: {row.get('test_confidence_mean', 0.0):.4f} ({row.get('test_confidence_mean', 0.0)*100:.2f}%)\n")
                 f.write(f"   Features: RSI={row.get('use_rsi', False)}, EMA={row.get('use_ema', False)}, MACD={row.get('use_macd', False)}, "
                        f"Bollinger={row.get('use_bollinger', False)}, ATR={row.get('use_atr', False)}\n")
                 f.write(f"   Hiperparâmetros: LR={row['learning_rate']}, Leaves={int(row['num_leaves'])}, "
@@ -621,7 +712,8 @@ class HyperparameterOptimizer:
             f.write("1. O arquivo 'best_config.yaml' já foi gerado com estes parâmetros\n")
             f.write("2. Use-o para treinar o modelo final: python -m src.rl.train --config best_config.yaml\n")
             f.write("3. A acurácia direcional é o principal indicador para trading\n")
-            f.write("4. Valores acima de 55% de acurácia direcional já são úteis em produção\n\n")
+            f.write("4. Valores acima de 55% de acurácia direcional já são úteis em produção\n")
+            f.write(f"5. Confiança média de {best.get('test_confidence_mean', 0.0):.2%} indica o nível de certeza do modelo\n\n")
             
             f.write("PRÓXIMOS PASSOS:\n\n")
             f.write("1. Treinar modelo completo com a melhor configuração\n")
@@ -630,6 +722,7 @@ class HyperparameterOptimizer:
             f.write("4. Monitorar drift: performance pode degradar ao longo do tempo\n")
             f.write("5. Considerar re-treinamento periódico (ex: mensal)\n\n")
             
+            # Avisos sobre acurácia
             if best['test_direction_acc'] < 0.52:
                 f.write("⚠️  AVISO: Acurácia direcional abaixo de 52%\n")
                 f.write("   - Modelo tem baixo poder preditivo\n")
@@ -638,7 +731,22 @@ class HyperparameterOptimizer:
                 f.write("⚡ ATENÇÃO: Acurácia direcional moderada (52-55%)\n")
                 f.write("   - Modelo pode ser útil mas requer gestão de risco cuidadosa\n")
                 f.write("   - Considere combinar com outros sinais/filtros\n\n")
+            
+            # Avisos sobre confiança
+            confidence_mean = best.get('test_confidence_mean', 0.0)
+            if confidence_mean < 0.028:  # Menor que threshold de 2.8%
+                f.write(f"⚠️  AVISO: Confiança média ({confidence_mean:.2%}) abaixo do threshold de 2.8%\n")
+                f.write("   - Modelo gera poucos sinais de trading com confiança suficiente\n")
+                f.write("   - Considere ajustar features ou coletar mais dados de qualidade\n\n")
+            elif confidence_mean < 0.05:  # Confiança baixa (< 5%)
+                f.write(f"⚡ ATENÇÃO: Confiança média baixa ({confidence_mean:.2%})\n")
+                f.write("   - Modelo é conservador, pode gerar poucos sinais\n")
+                f.write("   - Isso pode ser positivo para reduzir falsos positivos\n\n")
             else:
+                f.write(f"✓ Confiança média adequada ({confidence_mean:.2%})\n")
+                f.write("   - Modelo apresenta bom equilíbrio entre cautela e oportunidade\n\n")
+            
+            if best['test_direction_acc'] >= 0.55:
                 f.write("✓ EXCELENTE: Acurácia direcional acima de 55%\n")
                 f.write("   - Modelo demonstra bom poder preditivo\n")
                 f.write("   - Adequado para uso em trading com gestão de risco apropriada\n\n")

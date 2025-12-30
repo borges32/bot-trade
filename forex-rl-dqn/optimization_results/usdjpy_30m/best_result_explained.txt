@@ -1,6 +1,6 @@
 ================================================================================
 RELATÓRIO DE OTIMIZAÇÃO - USDJPY 30m
-Data: 2025-12-19 19:22:48
+Data: 2025-12-30 09:02:40
 ================================================================================
 
 MELHOR CONFIGURAÇÃO ENCONTRADA
@@ -8,24 +8,28 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
 
 1. MÉTRICAS DE PERFORMANCE (Test Set)
 
-   Score Combinado: 0.444366
+   Score Combinado: 0.415190
    - Quanto menor, melhor (combina RMSE e erro de direção)
 
-   RMSE (Root Mean Square Error): 0.004483
+   RMSE (Root Mean Square Error): 0.005741
    - Erro médio quadrático das previsões de preço
    - Quanto menor, mais preciso é o modelo
 
-   MAE (Mean Absolute Error): 0.003601
+   MAE (Mean Absolute Error): 0.004654
    - Erro médio absoluto das previsões
-   - Interpretação: em média, previsões erram por 0.003601 pips
+   - Interpretação: em média, previsões erram por 0.004654 pips
 
-   R² (Coeficiente de Determinação): -0.000988
-   - Explica -0.10% da variância dos preços
+   R² (Coeficiente de Determinação): -0.004381
+   - Explica -0.44% da variância dos preços
    - Valores próximos de 1 são melhores
 
-   Acurácia Direcional: 0.5601 (56.01%)
+   Acurácia Direcional: 0.5906 (59.06%)
    - Percentual de vezes que prevê corretamente se o preço vai subir ou descer
    - Crucial para trading: acima de 50% indica poder preditivo
+
+   Confidence Mean: 0.8544 (85.44%)
+   - Média de confiança das predições no conjunto de teste
+   - Indica o nível médio de certeza do modelo nas predições
 
 2. FEATURES/INDICADORES TÉCNICOS ATIVADOS
 
@@ -44,43 +48,43 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
 
 3. HIPERPARÂMETROS DO LIGHTGBM
 
-   Prediction Horizon: 8
+   Prediction Horizon: 10
    - Quantos candles à frente o modelo prevê
-   - Valor 8 = prevê 240 minutos à frente
+   - Valor 10 = prevê 300 minutos à frente
 
-   Learning Rate: 0.008
+   Learning Rate: 0.03
    - Taxa de aprendizado do modelo
    - Valores menores = aprendizado mais lento mas estável
 
-   Num Leaves: 15
+   Num Leaves: 50
    - Número máximo de folhas nas árvores
    - Controla complexidade: mais folhas = modelo mais complexo
 
-   Max Depth: 9
+   Max Depth: 6
    - Profundidade máxima das árvores
    - Limita crescimento para evitar overfitting
 
-   N Estimators: 200
+   N Estimators: 500
    - Número de árvores no ensemble
    - Mais árvores = modelo mais robusto (até certo ponto)
 
-   Min Child Samples: 40
+   Min Child Samples: 20
    - Mínimo de amostras para criar uma folha
    - Previne overfitting em regiões com poucos dados
 
-   Subsample: 0.9
+   Subsample: 0.8
    - Fração de dados usada para treinar cada árvore
    - Adiciona randomização para melhorar generalização
 
-   Colsample Bytree: 0.82
+   Colsample Bytree: 0.8
    - Fração de features usadas em cada árvore
    - Reduz correlação entre árvores
 
-   Reg Alpha: 0.4
+   Reg Alpha: 0.3
    - Regularização L1 (Lasso)
    - Penaliza features menos importantes
 
-   Reg Lambda: 0.1
+   Reg Lambda: 0.3
    - Regularização L2 (Ridge)
    - Suaviza pesos para evitar overfitting
 
@@ -88,35 +92,40 @@ MELHOR CONFIGURAÇÃO ENCONTRADA
 TOP 5 MELHORES CONFIGURAÇÕES
 ================================================================================
 
-#1 - Score: 0.444366
-   Métricas: RMSE=0.004483, MAE=0.003601, R²=-0.000988, Dir Acc=0.5601
+#1 - Score: 0.415190
+   Métricas: RMSE=0.005741, MAE=0.004654, R²=-0.004381, Dir Acc=0.5906
+   Confidence Mean: 0.8544 (85.44%)
    Features: RSI=True, EMA=True, MACD=True, Bollinger=True, ATR=True
-   Hiperparâmetros: LR=0.008, Leaves=15, Depth=9, N_Est=200
-   Horizon=8, Subsample=0.9, Colsample=0.82
+   Hiperparâmetros: LR=0.03, Leaves=50, Depth=6, N_Est=500
+   Horizon=10, Subsample=0.8, Colsample=0.8
 
-#2 - Score: 0.444367
-   Métricas: RMSE=0.004485, MAE=0.003608, R²=-0.001642, Dir Acc=0.5601
-   Features: RSI=True, EMA=False, MACD=False, Bollinger=True, ATR=True
-   Hiperparâmetros: LR=0.03, Leaves=50, Depth=4, N_Est=400
-   Horizon=8, Subsample=0.6, Colsample=0.85
-
-#3 - Score: 0.456821
-   Métricas: RMSE=0.004475, MAE=0.003596, R²=0.002784, Dir Acc=0.5477
-   Features: RSI=True, EMA=True, MACD=True, Bollinger=False, ATR=False
-   Hiperparâmetros: LR=0.02, Leaves=80, Depth=4, N_Est=1500
-   Horizon=8, Subsample=0.8, Colsample=0.82
-
-#4 - Score: 0.459187
-   Métricas: RMSE=0.003843, MAE=0.003115, R²=0.000592, Dir Acc=0.5447
-   Features: RSI=True, EMA=True, MACD=True, Bollinger=False, ATR=False
-   Hiperparâmetros: LR=0.07, Leaves=50, Depth=6, N_Est=500
-   Horizon=6, Subsample=0.65, Colsample=0.82
-
-#5 - Score: 0.461233
-   Métricas: RMSE=0.004488, MAE=0.003612, R²=-0.003262, Dir Acc=0.5433
+#2 - Score: 0.420167
+   Métricas: RMSE=0.004583, MAE=0.003687, R²=-0.004176, Dir Acc=0.5844
+   Confidence Mean: 0.8650 (86.50%)
    Features: RSI=False, EMA=True, MACD=True, Bollinger=False, ATR=True
-   Hiperparâmetros: LR=0.001, Leaves=70, Depth=2, N_Est=150
-   Horizon=8, Subsample=0.95, Colsample=0.8
+   Hiperparâmetros: LR=0.03, Leaves=45, Depth=6, N_Est=1200
+   Horizon=6, Subsample=0.82, Colsample=1.0
+
+#3 - Score: 0.428148
+   Métricas: RMSE=0.005171, MAE=0.004185, R²=0.011796, Dir Acc=0.5770
+   Confidence Mean: 0.8300 (83.00%)
+   Features: RSI=False, EMA=True, MACD=False, Bollinger=True, ATR=True
+   Hiperparâmetros: LR=0.001, Leaves=50, Depth=5, N_Est=1000
+   Horizon=8, Subsample=0.85, Colsample=0.7
+
+#4 - Score: 0.433122
+   Métricas: RMSE=0.004550, MAE=0.003669, R²=0.009880, Dir Acc=0.5714
+   Confidence Mean: 0.8620 (86.20%)
+   Features: RSI=False, EMA=True, MACD=True, Bollinger=False, ATR=True
+   Hiperparâmetros: LR=0.008, Leaves=127, Depth=3, N_Est=300
+   Horizon=6, Subsample=0.9, Colsample=0.8
+
+#5 - Score: 0.433153
+   Métricas: RMSE=0.004581, MAE=0.003683, R²=-0.003558, Dir Acc=0.5714
+   Confidence Mean: 0.8537 (85.37%)
+   Features: RSI=False, EMA=True, MACD=True, Bollinger=False, ATR=True
+   Hiperparâmetros: LR=0.03, Leaves=20, Depth=9, N_Est=500
+   Horizon=6, Subsample=0.9, Colsample=0.6
 
 ================================================================================
 INTERPRETAÇÃO E RECOMENDAÇÕES
@@ -128,7 +137,8 @@ COMO USAR ESTA CONFIGURAÇÃO:
 2. Use-o para treinar o modelo final: python -m src.rl.train --config best_config.yaml
 3. A acurácia direcional é o principal indicador para trading
 4. Valores acima de 55% de acurácia direcional já são úteis em produção
--d
+5. Confiança média de 85.44% indica o nível de certeza do modelo
+
 PRÓXIMOS PASSOS:
 
 1. Treinar modelo completo com a melhor configuração
@@ -136,6 +146,9 @@ PRÓXIMOS PASSOS:
 3. Validar performance em diferentes condições de mercado
 4. Monitorar drift: performance pode degradar ao longo do tempo
 5. Considerar re-treinamento periódico (ex: mensal)
+
+✓ Confiança média adequada (85.44%)
+   - Modelo apresenta bom equilíbrio entre cautela e oportunidade
 
 ✓ EXCELENTE: Acurácia direcional acima de 55%
    - Modelo demonstra bom poder preditivo
