@@ -183,24 +183,25 @@ class TradingPredictor:
         return_pct = abs_return * 100
         
         # Fator de magnitude ajustado para movimentos de Forex
-        # Usa base_accuracy como piso e escala até 100% para movimentos grandes
-        # - Movimentos de 0.05% (5 pips) → magnitude_factor ≈ 1.5
-        # - Movimentos de 0.1% (10 pips) → magnitude_factor ≈ 2.0
-        # - Movimentos de 0.2% (20 pips) → magnitude_factor ≈ 3.0
-        # - Movimentos >= 0.5% (50 pips) → magnitude_factor ≈ 6.0
-        # Fórmula: confidence = base_accuracy × (1 + return_pct * 10)
-        # Isso garante que mesmo pequenos movimentos tenham confiança razoável
-        magnitude_multiplier = 1.0 + (return_pct * 10.0)
-        confidence = min(base_accuracy * magnitude_multiplier, 1.0)
+        # Baseado em confidence média de treinamento: 85.44%
+        # Usa base_accuracy como ponto de partida e adiciona bônus pela magnitude
+        # - Movimentos de 0.05% (5 pips) → confidence ≈ 57.5%
+        # - Movimentos de 0.1% (10 pips) → confidence ≈ 60%
+        # - Movimentos de 0.2% (20 pips) → confidence ≈ 65%
+        # - Movimentos de 0.5% (50 pips) → confidence ≈ 80%
+        # - Movimentos >= 1.0% (100 pips) → confidence ≈ 90% (máximo)
+        # Fórmula ajustada: confidence = base_accuracy + (return_pct * 50), limitado a 90%
+        magnitude_bonus = min(return_pct * 50.0, 0.35)  # Máximo de 35% de bônus
+        confidence = min(base_accuracy + magnitude_bonus, 0.90)
         
         # Log detalhado para debug
         logger.info(f"[PREDICT DEBUG] predicted_return={predicted_return:.6f} ({return_pct:.4f}%), "
-                   f"base_accuracy={base_accuracy:.2%}, magnitude_multiplier={magnitude_multiplier:.4f}, "
+                   f"base_accuracy={base_accuracy:.2%}, magnitude_bonus={magnitude_bonus:.4f}, "
                    f"confidence={confidence:.2%}, min_confidence={self.min_confidence:.2%}")
         
         # Determina sinal
-        # Regra: confidence >= min_confidence E confidence > 65%
-        if confidence >= self.min_confidence and confidence >= 0.65:
+        # Regra: confidence >= min_confidence E confidence > 82%
+        if confidence >= self.min_confidence and confidence >= 0.82:
             if predicted_return > 0:
                 signal = "BUY"
             else:
@@ -291,16 +292,16 @@ class TradingPredictor:
         predictions = self.lightgbm.predict(df_features[feature_columns])
         
         # Calcula confiança (mesma lógica do predict)
-        # Fórmula: confidence = base_accuracy × (1 + return_pct * 10)
+        # Fórmula ajustada: confidence = base_accuracy + (return_pct * 50), limitado a 90%
         return_pcts = np.abs(predictions) * 100
-        magnitude_multipliers = 1.0 + (return_pcts * 10.0)
-        confidences = np.minimum(self.test_direction_acc * magnitude_multipliers, 1.0)
+        magnitude_bonuses = np.minimum(return_pcts * 50.0, 0.35)
+        confidences = np.minimum(self.test_direction_acc + magnitude_bonuses, 0.90)
         
         # Determina sinais
-        # Regra: confidence >= min_confidence E confidence >= 65%
+        # Regra: confidence >= min_confidence E confidence >= 82%
         signals = []
         for pred, conf in zip(predictions, confidences):
-            if conf >= self.min_confidence and conf >= 0.65:
+            if conf >= self.min_confidence and conf >= 0.82:
                 signals.append("BUY" if pred > 0 else "SELL")
             else:
                 signals.append("NEUTRAL")
