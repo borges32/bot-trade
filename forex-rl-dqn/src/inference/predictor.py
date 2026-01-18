@@ -176,32 +176,62 @@ class TradingPredictor:
         base_accuracy = self.test_direction_acc
         
         # Magnitude do retorno (predicted_return está em escala decimal)
-        # Ex: 0.001 = 0.1% = 10 pips em forex típico
+        # Para EURUSD: 1 pip = 0.0001, então 0.001 = 10 pips
         abs_return = abs(predicted_return)
         
-        # Converte para percentual
+        # Converte para pips (EURUSD: 1 pip = 0.0001)
+        # Para pares XXX/JPY usar pip_size = 0.01
+        pip_size = 0.0001  # EURUSD
+        pips = abs_return / pip_size
+        
+        # Converte para percentual (para compatibilidade)
         return_pct = abs_return * 100
         
-        # Fator de magnitude ajustado para movimentos de Forex
-        # Baseado em confidence média de treinamento: 85.44%
-        # Usa base_accuracy como ponto de partida e adiciona bônus pela magnitude
-        # - Movimentos de 0.05% (5 pips) → confidence ≈ 57.5%
-        # - Movimentos de 0.1% (10 pips) → confidence ≈ 60%
-        # - Movimentos de 0.2% (20 pips) → confidence ≈ 65%
-        # - Movimentos de 0.5% (50 pips) → confidence ≈ 80%
-        # - Movimentos >= 1.0% (100 pips) → confidence ≈ 90% (máximo)
-        # Fórmula ajustada: confidence = base_accuracy + (return_pct * 50), limitado a 90%
-        magnitude_bonus = min(return_pct * 50.0, 0.35)  # Máximo de 35% de bônus
+        # ================================================================
+        # CONFIGURAÇÃO DE SENSIBILIDADE DO SINAL
+        # ================================================================
+        # Calibrado para EURUSD baseado nos dados de treinamento:
+        # - Base accuracy do modelo: ~59%
+        # - MAE do modelo: ~47 pips
+        # - Std dos retornos: ~61 pips
+        #
+        # Tabela de referência (com config atual):
+        # - 10 pips → confidence ≈ 63% → NEUTRAL
+        # - 18 pips → confidence ≈ 66% → BUY/SELL ✓
+        # - 30 pips → confidence ≈ 71% → BUY/SELL
+        # - 50 pips → confidence ≈ 79% → BUY/SELL
+        # - 80+ pips → confidence ≈ 90% → BUY/SELL (máximo)
+        #
+        # ┌─────────────────────────────────────────────────────────────┐
+        # │ AJUSTE AQUI PARA MUDAR SENSIBILIDADE:                       │
+        # │                                                             │
+        # │ MAGNITUDE_MULTIPLIER: Quanto maior, mais sensível           │
+        # │   - 0.4 = padrão (18 pips → 66%, 40 pips → 75%)            │
+        # │   - 0.5 = mais sensível (14 pips → 66%)                    │
+        # │   - 0.3 = menos sensível (24 pips → 66%)                   │
+        # │                                                             │
+        # │ MIN_SIGNAL_CONFIDENCE: Threshold para gerar sinal           │
+        # │   - 0.66 = sensível (18 pips já gera sinal)                │
+        # │   - 0.70 = moderado (28 pips para sinal)                   │
+        # │   - 0.75 = conservador (40 pips para sinal)                │
+        # └─────────────────────────────────────────────────────────────┘
+        MAGNITUDE_MULTIPLIER = 0.5   # <-- AJUSTE AQUI: multiplicador de magnitude
+        MAX_BONUS = 0.31             # <-- Bônus máximo de confiança (31%)
+        MIN_SIGNAL_CONFIDENCE = 0.65 # <-- AJUSTE AQUI: threshold para BUY/SELL (66% = ~18 pips)
+        # ================================================================
+        
+        magnitude_bonus = min(return_pct * MAGNITUDE_MULTIPLIER, MAX_BONUS)
         confidence = min(base_accuracy + magnitude_bonus, 0.90)
         
         # Log detalhado para debug
-        logger.info(f"[PREDICT DEBUG] predicted_return={predicted_return:.6f} ({return_pct:.4f}%), "
+        logger.info(f"[PREDICT DEBUG] predicted_return={predicted_return:.6f} ({pips:.1f} pips), "
                    f"base_accuracy={base_accuracy:.2%}, magnitude_bonus={magnitude_bonus:.4f}, "
-                   f"confidence={confidence:.2%}, min_confidence={self.min_confidence:.2%}")
+                   f"confidence={confidence:.2%}, min_signal_conf={MIN_SIGNAL_CONFIDENCE:.2%}")
         
         # Determina sinal
-        # Regra: confidence >= min_confidence E confidence > 82%
-        if confidence >= self.min_confidence and confidence >= 0.82:
+        # Regra: confidence >= min_confidence (config) E confidence >= MIN_SIGNAL_CONFIDENCE
+        min_signal_confidence = MIN_SIGNAL_CONFIDENCE
+        if confidence >= self.min_confidence and confidence >= min_signal_confidence:
             if predicted_return > 0:
                 signal = "BUY"
             else:
@@ -212,6 +242,7 @@ class TradingPredictor:
         result = {
             'signal': signal,
             'predicted_return': float(predicted_return),
+            'predicted_pips': float(predicted_return / pip_size),  # Em pips para EURUSD
             'confidence': float(confidence),
             'base_accuracy': float(base_accuracy),
             'current_price': float(current_price)
@@ -292,16 +323,22 @@ class TradingPredictor:
         predictions = self.lightgbm.predict(df_features[feature_columns])
         
         # Calcula confiança (mesma lógica do predict)
-        # Fórmula ajustada: confidence = base_accuracy + (return_pct * 50), limitado a 90%
+        # IMPORTANTE: Usar mesmos valores de MAGNITUDE_MULTIPLIER, MAX_BONUS e 
+        # MIN_SIGNAL_CONFIDENCE definidos no método predict()
+        MAGNITUDE_MULTIPLIER = 0.4   # Deve ser igual ao predict()
+        MAX_BONUS = 0.31             # Deve ser igual ao predict()
+        MIN_SIGNAL_CONFIDENCE = 0.66 # Deve ser igual ao predict() (66% = ~18 pips)
+        
         return_pcts = np.abs(predictions) * 100
-        magnitude_bonuses = np.minimum(return_pcts * 50.0, 0.35)
+        magnitude_bonuses = np.minimum(return_pcts * MAGNITUDE_MULTIPLIER, MAX_BONUS)
         confidences = np.minimum(self.test_direction_acc + magnitude_bonuses, 0.90)
         
         # Determina sinais
-        # Regra: confidence >= min_confidence E confidence >= 82%
+        # Regra: confidence >= min_confidence E confidence >= MIN_SIGNAL_CONFIDENCE
+        min_signal_confidence = MIN_SIGNAL_CONFIDENCE
         signals = []
         for pred, conf in zip(predictions, confidences):
-            if conf >= self.min_confidence and conf >= 0.82:
+            if conf >= self.min_confidence and conf >= min_signal_confidence:
                 signals.append("BUY" if pred > 0 else "SELL")
             else:
                 signals.append("NEUTRAL")

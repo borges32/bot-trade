@@ -375,6 +375,7 @@ class PredictionResponse(BaseModel):
     """Modelo de resposta da predição LightGBM."""
     signal: str
     predicted_return: float
+    predicted_pips: Optional[float] = Field(None, description="Retorno previsto em pips (EURUSD: 1 pip = 0.0001)")
     confidence: float
     base_accuracy: Optional[float] = None
     current_price: float
